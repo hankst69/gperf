@@ -1,0 +1,16 @@
+jobs:
+- job: copr_build
+  metadata:
+    targets:
+    - centos-stream-8-x86_64
+  trigger: pull_request
+- job: tests
+  metadata:
+    targets:
+    - centos-stream-8-x86_64
+  trigger: pull_request
+sources:
+- path: gperf-3.1.tar.gz
+  url: https://git.centos.org/sources/gperf/c8s/e3c0618c2d2e5586eda9498c867d5e4858a3b0e2
+specfile_path: SPECS/gperf.spec
+upstream_ref: c8s-source-git
