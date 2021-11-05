@@ -10,7 +10,7 @@
 #     in a gnulib checkout, or
 #   - an internet connection.
 
-# Copyright (C) 2003-2012 Free Software Foundation, Inc.
+# Copyright (C) 2003-2016 Free Software Foundation, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ GNULIB_REPO_URL="http://git.savannah.gnu.org/gitweb/?p=gnulib.git;a=blob_plain;h
 for file in build-aux/install-sh build-aux/mkinstalldirs \
             build-aux/compile build-aux/ar-lib; do
   if test -n "$GNULIB_TOOL"; then
-    $GNULIB_TOOL--copy-file $file $file
+    $GNULIB_TOOL --copy-file $file $file
   else
     wget -q --timeout=5 -O $file.tmp "${GNULIB_REPO_URL}$file" \
       && mv $file.tmp $file
@@ -41,6 +41,6 @@ done
 chmod a+x build-aux/install-sh build-aux/mkinstalldirs \
           build-aux/compile build-aux/ar-lib
 
-rm -f configure lib/configure src/configure tests/configure doc/configure
-rm -f src/config.h.in src/config.h_vms
-make -f Makefile.devel
+make -f Makefile.devel totally-clean all || exit $?
+
+echo "$0: done.  Now you can run './configure'."

@@ -1,3 +1,183 @@
+2017-01-02  Marcel Schaible <marcel.schaible@studium.fernuni-hagen.de>
+	
+	* gperf-3.1 released.
+
+2016-12-29  Bruno Haible  <bruno@clisp.org>
+
+	Make autogen.sh more user-friendly.
+	* autogen.sh: Emit a message at the end, if everything succeeded.
+
+2016-12-03  Bruno Haible  <bruno@clisp.org>
+
+	Make Makefile.devel more useful for the users of the released tarball.
+	* Makefile.devel (totally-clean): New target.
+	* autogen.sh: Invoke it and 'all'.
+
+2016-11-27  Bruno Haible  <bruno@clisp.org>
+
+	Fix build with mingw.
+	* README.windows: Augment PATH for mingw, so that it finds libstdc++.
+
+2016-11-27  Bruno Haible  <bruno@clisp.org>
+
+	Assume the available C compiler supports ANSI C. Remove K&R C cruft.
+	* lib/getopt.h: Assume 'const' is defined. Use ANSI C prototypes.
+	* lib/getopt.c: Assume 'const' is defined. Use ANSI C prototypes.
+	Include <stddef.h>. Declare strcmp and strlen.
+	* lib/getopt1.c: Assume 'const' and NULL are defined. Use ANSI C
+	prototypes.
+	* lib/getopt.h.patch: Remove file.
+	* lib/getopt.c.patch: Remove file.
+	* lib/Makefile.in (SOURCE_FILES): Remove them.
+	* tests/jstest*.gperf: Assume 'const' is defined.
+	* tests/test.c: Use ANSI C prototypes.
+	(in_word_set): Fix prototype.
+	* tests/test2.c: Use ANSI C prototypes.
+	(in_word_set): Fix prototype.
+	Reported by Erik Johansson at <https://savannah.gnu.org/patch/?7382>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Drop the inline specifiers from the generated lookup function.
+	It's not adequate because
+	- this lookup function is quite large in fact, not worth inlining,
+	- with gcc -O0, it leads to link errors, see
+	  <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=41194#c2>
+	- the hash function is 'static', the lookup function is non-static,
+	  but references from non-static inline functions to static functions
+	  and variables are forbidden, see ISO C 99 section 6.7.4.(3).
+	* src/output.cc (Output::output_lookup_function): Don't emit an inline
+	specifier.
+	* tests/*.exp: Update.
+	Reported by Sebastian Freundt and Sergii Strelkovskyi
+	at <https://savannah.gnu.org/bugs/?37071>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Change mailing list address to <bug-gperf@gnu.org>.
+	* src/output.cc (Output::output): Change bug report address to
+	<bug-gperf@gnu.org>.
+	* src/options.cc (Options::long_usage): Likewise.
+	* README: Likewise.
+	* doc/gperf.texi (Contributors): Likewise.
+	* tests/*.{c,exp,out}: Update.
+	Reported by Eric Blake <eblake@redhat.com>
+	at <http://lists.gnu.org/archive/html/bug-gperf/2014-10/msg00000.html>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Change the 'len' parameter type to 'size_t'.
+	* src/output.cc (output_upperlower_strncmp, output_upperlower_memcmp,
+	Output::output_hash_function, Output::output_lookup_function,
+	Output::output): Emit declarations with 'size_t len' instead of
+	'unsigned int len'.
+	* tests/*.exp: Update.
+	* doc/gperf.texi (Output Format): Change declarations of 'hash' and
+	'in_word_set'.
+	* NEWS: Mention the change.
+	Reported by Pedro Giffuni <pfg@FreeBSD.org>
+	at <http://lists.gnu.org/archive/html/bug-gperf/2014-08/msg00000.html>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Use proper 'ar' program when cross-compiling or when AR is specified.
+	* lib/configure.ac (AR): Determine through AC_CHECK_TOOL.
+	* lib/Makefile.in (AR): Use value determined by 'configure'.
+	Reported by György Andrasek <jurily@gmail.com>
+	at <http://lists.gnu.org/archive/html/bug-gperf/2014-04/msg00000.html>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Avoid 'warning: cast from pointer to integer of different size'
+	in output code on 64-bit native Windows platforms.
+	* src/output.cc (output_keyword_entry): Cast pointer to 'size_t',
+	not to 'long', before casting it further to 'int'.
+	* tests/*.exp: Update.
+	Reported at <https://savannah.gnu.org/bugs/?45330>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Don't use 'register' storage-class specifier in C++ output code.
+	* src/output.cc (register_scs): New variable.
+	(Output::Output): Initialize it.
+	(output_upperlower_strcmp, output_upperlower_strncmp,
+	output_upperlower_memcmp, Output::output_hash_function,
+	Output::output_lookup_function_body, Output::output_lookup_function):
+	Use it.
+	Reported at <https://savannah.gnu.org/bugs/?44887>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Avoid 'warning: use of old-style cast' in output code.
+	* src/output.h (Output::output_asso_values_index): New method
+	declaration.
+	* src/output.cc (Output::output_asso_values_index): New method,
+	extracted from Output::output_asso_values_ref.
+	(Output::output_asso_values_ref): Use it. In C++ mode, emit C++ style
+	cast syntax.
+	Reported at <https://savannah.gnu.org/bugs/?44887>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Avoid 'warning: implicit conversion changes signedness' in output code.
+	* src/output.cc (Output::output_lookup_function_body): Emit declaration
+	of 'key' as 'unsigned int', not 'int'. Optimize comparison accordingly.
+	* tests/*.exp: Update.
+	Reported at <https://savannah.gnu.org/bugs/?44887>.
+
+2016-11-26  Bruno Haible  <bruno@clisp.org>
+
+	Avoid 'warning: implicit conversion changes signedness' in output code.
+	* src/output.cc (Output::output_hash_function): Emit declaration of
+	'hval' as 'unsigned int', not 'int'.
+	* tests/*.exp: Update.
+	Reported at <https://savannah.gnu.org/bugs/?44887>.
+
+2016-11-25  Bruno Haible  <bruno@clisp.org>
+
+	Fix g++ -Wall warnings.
+	* src/search.cc (Search::prepare, Search::find_positions,
+	Search::optimize): Add braces in 'if (...) for (...)', to pacify
+	g++ 4.6.3 warnings "suggest explicit braces to avoid ambiguous 'else'"
+	(although there is no 'else'!).
+
+2016-11-25  Bruno Haible  <bruno@clisp.org>
+
+	Fix typo in autogen.sh, introduced on 2012-07-01.
+	* autogen.sh: Fix typo.
+
+2016-11-25  Bruno Haible  <bruno@clisp.org>
+
+	Fix "make check" error on Mac OS X.
+	* tests/Makefile.in (POSTPROCESS_FOR_MINGW): Run 'sed' in the C locale.
+	This fixes an error "sed: RE error: illegal byte sequence" on Mac OS X
+	when producing languages.out.
+	Reported at <https://savannah.gnu.org/bugs/?45329>.
+
+2016-11-23  Bruno Haible  <bruno@clisp.org>
+
+	Update installation instructions for Windows.
+	* README.windows: Assume a 64-bit Windows. Explain both 32-bit and
+	64-bit builds. Revamp instructions for the MS Visual C/C++ tool chain
+	and for Cygwin.
+
+2016-11-23  Bruno Haible  <bruno@clisp.org>
+
+	Drop the nickname "woe32".
+	* README.windows: Renamed from README.woe32.
+	* Makefile.in (SOURCE_FILES): Update.
+
+2016-11-19  Bruno Haible  <bruno@clisp.org>
+
+	doc: Prepare for possible use of GNU texi2any.
+	* doc/Makefile.in (TEXI2ANY): New variable.
+	(gperf_0.html): New rule.
+
+2016-11-19  Bruno Haible  <bruno@clisp.org>
+
+	doc: Don't generate Postscript-formatted doc by default.
+	* doc/Makefile.in (all): Don't depend on 'ps'.
+
 2014-10-15  Eric Blake  <eblake@redhat.com>
 
 	doc: fix invalid use of @itemx
