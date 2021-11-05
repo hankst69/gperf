@@ -2,7 +2,7 @@
 
 /* Keyword data.
 
-   Copyright (C) 1989-1998, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000, 2002-2003, 2017 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
    and Bruno Haible <bruno@clisp.org>.
 
@@ -19,7 +19,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifndef keyword_h
 #define keyword_h 1
@@ -33,7 +33,7 @@ struct Keyword
 {
   /* Constructor.  */
                         Keyword (const char *allchars, int allchars_length,
-                                 const char *rest);
+                                 const char *rest, unsigned int lineno);
 
   /* Data members defined immediately by the input file.  */
   /* The keyword as a string, possibly containing NUL bytes.  */
@@ -51,7 +51,7 @@ struct KeywordExt : public Keyword
 {
   /* Constructor.  */
                         KeywordExt (const char *allchars, int allchars_length,
-                                    const char *rest);
+                                    const char *rest, unsigned int lineno);
 
   /* Data members depending on the keyposition list.  */
   /* The selected characters that participate for the hash function,
@@ -97,7 +97,7 @@ public:
   /* Creates a new Keyword.  */
   virtual /*abstract*/ Keyword *
                         create_keyword (const char *allchars, int allchars_length,
-                                        const char *rest) = 0;
+                                        const char *rest, unsigned int lineno) = 0;
 };
 
 /* A statically allocated empty string.  */

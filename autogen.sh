@@ -4,13 +4,13 @@
 # also regenerates all config.h.in, configure files with new versions of
 # autoconf.
 #
-# This script requires autoconf-2.60..2.69 in the PATH.
+# This script requires autoconf-2.64..2.71 in the PATH.
 # It also requires either
 #   - the GNULIB_TOOL environment variable pointing to the gnulib-tool script
 #     in a gnulib checkout, or
 #   - an internet connection.
 
-# Copyright (C) 2003-2016 Free Software Foundation, Inc.
+# Copyright (C) 2003-2021 Free Software Foundation, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,11 +23,11 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Usage: ./autogen.sh
 
-GNULIB_REPO_URL="http://git.savannah.gnu.org/gitweb/?p=gnulib.git;a=blob_plain;hb=HEAD;f="
+GNULIB_REPO_URL="https://git.savannah.gnu.org/gitweb/?p=gnulib.git;a=blob_plain;hb=HEAD;f="
 
 for file in build-aux/install-sh build-aux/mkinstalldirs \
             build-aux/compile build-aux/ar-lib; do

@@ -1,5 +1,5 @@
 /* Output routines.
-   Copyright (C) 1989-1998, 2000, 2002-2004, 2006-2007, 2009, 2011-2012, 2016 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000, 2002-2004, 2006-2007, 2009, 2011-2012, 2016, 2018 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
    and Bruno Haible <bruno@clisp.org>.
 
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Specification. */
 #include "output.h"
@@ -851,6 +851,8 @@ Output::output_hash_function () const
   /* First the asso_values array.  */
   if (_key_positions.get_size() > 0)
     {
+      /* The values in the asso_values array are all unsigned integers
+         <= MAX_HASH_VALUE + 1.  */
       printf ("  static %s%s asso_values[] =\n"
               "    {",
               const_readonly_array,
@@ -858,9 +860,9 @@ Output::output_hash_function () const
 
       const int columns = 10;
 
-      /* Calculate maximum number of digits required for MAX_HASH_VALUE.  */
+      /* Calculate maximum number of digits required for MAX_HASH_VALUE + 1.  */
       int field_width = 2;
-      for (int trunc = _max_hash_value; (trunc /= 10) > 0;)
+      for (int trunc = _max_hash_value + 1; (trunc /= 10) > 0;)
         field_width++;
 
       for (unsigned int count = 0; count < _alpha_size; count++)
@@ -932,6 +934,15 @@ Output::output_hash_function () const
       else
         {
           /* We've got to use the correct, but brute force, technique.  */
+          /* Pseudo-statement or comment that avoids a compiler warning or
+             lint warning.  */
+          const char * const fallthrough_marker =
+            "#if defined __cplusplus && (__cplusplus >= 201703L || (__cplusplus >= 201103L && defined __clang_major__ && defined __clang_minor__ && __clang_major__ + (__clang_minor__ >= 9) > 3))\n"
+            "      [[fallthrough]];\n"
+            "#elif defined __GNUC__ && __GNUC__ >= 7\n"
+            "      __attribute__ ((__fallthrough__));\n"
+            "#endif\n"
+            "      /*FALLTHROUGH*/\n";
           /* It doesn't really matter whether hval is an 'int' or
              'unsigned int', but 'unsigned int' gives fewer warnings.  */
           printf ("  %sunsigned int hval = %s;\n\n"
@@ -951,7 +962,7 @@ Output::output_hash_function () const
               do
                 {
                   if (i > key_pos)
-                    printf ("      /*FALLTHROUGH*/\n"); /* Pacify lint.  */
+                    printf ("%s", fallthrough_marker);
                   for ( ; i > key_pos; i--)
                     printf ("      case %d:\n", i);
 
@@ -964,7 +975,7 @@ Output::output_hash_function () const
               while (key_pos != PositionIterator::EOS && key_pos != Positions::LASTCHAR);
 
               if (i >= _min_key_len)
-                printf ("      /*FALLTHROUGH*/\n"); /* Pacify lint.  */
+                printf ("%s", fallthrough_marker);
               for ( ; i >= _min_key_len; i--)
                 printf ("      case %d:\n", i);
             }
@@ -1161,7 +1172,7 @@ Output::output_string_pool () const
 /* ------------------------------------------------------------------------- */
 
 static void
-output_keyword_entry (KeywordExt *temp, int stringpool_index, const char *indent)
+output_keyword_entry (KeywordExt *temp, int stringpool_index, const char *indent, bool is_duplicate)
 {
   if (option[TYPE])
     output_line_directive (temp->_lineno);
@@ -1194,8 +1205,14 @@ output_keyword_entry (KeywordExt *temp, int stringpool_index, const char *indent
       printf ("}");
     }
   if (option[DEBUG])
-    printf (" /* hash value = %d, index = %d */",
-            temp->_hash_value, temp->_final_index);
+    {
+      printf (" /* ");
+      if (is_duplicate)
+        printf ("hash value duplicate, ");
+      else
+        printf ("hash value = %d, ", temp->_hash_value);
+      printf ("index = %d */", temp->_final_index);
+    }
 }
 
 static void
@@ -1286,7 +1303,7 @@ Output::output_keyword_table () const
 
       keyword->_final_index = index;
 
-      output_keyword_entry (keyword, index, indent);
+      output_keyword_entry (keyword, index, indent, false);
 
       /* Deal with duplicates specially.  */
       if (keyword->_duplicate_link) // implies option[DUP]
@@ -1300,7 +1317,7 @@ Output::output_keyword_table () const
                           keyword->_allchars_length) == 0
                ? keyword->_final_index
                : links->_final_index);
-            output_keyword_entry (links, stringpool_index, indent);
+            output_keyword_entry (links, stringpool_index, indent, true);
           }
 
       index++;

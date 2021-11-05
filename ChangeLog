@@ -1,3 +1,188 @@
+2021-01-30  Bruno Haible  <bruno@clisp.org>
+
+	Mark Autoconf 2.71 as supported.
+	* autogen.sh: Update comment.
+
+2020-12-08  Bruno Haible  <bruno@clisp.org>
+
+	Mark Autoconf 2.70 as supported.
+	* autogen.sh: Update comment.
+
+2020-10-04  Bruno Haible  <bruno@clisp.org>
+
+	Fix warnings from Autoconf 2.69c.
+	* configure.ac: Invoke AC_INIT, AC_OUTPUT without arguments.
+	* doc/configure.ac: Likewise.
+	* lib/configure.ac: Likewise.
+	* src/configure.ac: Invoke AC_INIT, AC_OUTPUT without arguments. Use
+	AC_CACHE_CHECK, AC_LANG_PUSH/AC_LANG_POP, AC_COMPILE_IFELSE
+	* tests/configure.ac: Invoke AC_INIT, AC_OUTPUT without arguments. Use
+	ac_cv_c_compiler_gnu instead of ac_cv_prog_gcc, and
+	ac_cv_cxx_compiler_gnu instead of ac_cv_prog_gxx. Don't use 'test' with
+	option '-a'.
+
+2020-08-30  Bruno Haible  <bruno@clisp.org>
+
+	Make the code C++17 compliant.
+	* lib/getline.cc (getstr): Don't use the 'register' keyword.
+
+2020-08-29  Bruno Haible  <bruno@clisp.org>
+
+	Fix link error on native Windows with MSVC/clang.
+	* tests/test2.c (SET_BINARY): On native Windows, use _setmode, not
+	setmode.
+
+2020-08-29  Bruno Haible  <bruno@clisp.org>
+
+	Update after gnulib changed.
+	* configure.ac (AC_PREREQ): Require Autoconf >= 2.64.
+	* doc/configure.ac (AC_PREREQ): Likewise.
+	* lib/configure.ac (AC_PREREQ): Likewise.
+	* src/configure.ac (AC_PREREQ): Likewise.
+	* tests/configure.ac (AC_PREREQ): Likewise.
+	* autogen.sh: Update comment.
+
+2020-02-10  Bruno Haible  <bruno@clisp.org>
+
+	Rely entirely on the GNU Build System.
+	* Makefile.vms: Remove file.
+	* INSTALL.vms: Remove file.
+	* Makefile.in (SOURCE_FILES): Remove them.
+	* Makefile.devel (src/config.h_vms): Remove target.
+	(totally-clean): Update.
+	* src/Makefile.in (GENERATED_FILES): Remove config.h_vms.
+
+2018-10-24  Bruno Haible  <bruno@clisp.org>
+
+	Update after gnulib changed.
+	* configure.ac (AC_PREREQ): Require Autoconf >= 2.63.
+	* doc/configure.ac (AC_PREREQ): Likewise.
+	* lib/configure.ac (AC_PREREQ): Likewise.
+	* src/configure.ac (AC_PREREQ): Likewise.
+	* tests/configure.ac (AC_PREREQ): Likewise.
+	* autogen.sh: Update comment.
+
+2018-09-16  Bruno Haible  <bruno@clisp.org>
+
+	Fix "Unescaped left brace in regex" warnings from Perl 5.26.
+	Reported and patch by Jehan <jehan@girinstud.io> <jehan@zemarmot.net> at
+	<https://savannah.gnu.org/bugs/?54088>.
+	* doc/texi2html: Escape braces in regular expressions.
+
+2018-09-14  Bruno Haible  <bruno@clisp.org>
+
+	doc: Assume texinfo 4.0 or newer.
+	* doc/gperf.texi: Omit Next, Prev, Up fields from @node lines.
+
+2018-09-08  Bruno Haible  <bruno@clisp.org>
+
+	Avoid "implicit fallthrough" warnings also from clang.
+	Reported by Nico Weber <thakis@chromium.org> in
+	<https://savannah.gnu.org/bugs/?53029>.
+	Clang emits these warnings in C++11 mode only, see
+	<https://clang.llvm.org/docs/AttributeReference.html#fallthrough>,
+	and only in clang 3.9 or newer, see
+	<https://releases.llvm.org/3.9.0/tools/clang/docs/ReleaseNotes.html>.
+	To avoid them, either [[fallthrough]] or the (nearly equivalent) older
+	[[clang::fallthrough]] can be used, see
+	<https://llvm.org/viewvc/llvm-project?view=revision&revision=262881>.
+	* src/output.cc (Output::output_hash_function): Enhance the fallthrough
+	marker.
+	* tests/*.exp: Update.
+
+2018-09-08  Bruno Haible  <bruno@clisp.org>
+
+	Fix failure of "make check -j2".
+	Reported and fix provided by Bernhard M. Wiedemann in
+	<https://savannah.gnu.org/bugs/?53208>.
+	* tests/Makefile.in (check-test): Depend on 'check-ada'.
+
+2018-09-08  Bruno Haible  <bruno@clisp.org>
+
+	Don't print uninitialized hash values in debug mode.
+	Reported by Frank Wojcik <frankw@touristinresidence.com> in
+	<https://savannah.gnu.org/patch/?9560>.
+	* src/output.cc (output_keyword_entry): Add an 'is_duplicate' argument.
+	(Output::output_keyword_table): Update callers.
+
+2018-09-08  Bruno Haible  <bruno@clisp.org>
+
+	Improve the speed of the positions search.
+	Reported by Frank Wojcik <frankw@touristinresidence.com> in
+	<https://savannah.gnu.org/patch/?9562>.
+	* src/search.cc (Search::find_positions): Double the speed of step 4.
+
+2018-09-08  Bruno Haible  <bruno@clisp.org>
+
+	Really prefer more efficient hash functions over less efficient ones.
+	Reported by Frank Wojcik <frankw@touristinresidence.com> in
+	<https://savannah.gnu.org/patch/?9561>.
+	* src/search.cc (Search::find_positions): In step 4, make sure a less
+	efficient hash function does not replace a more efficient one. Also,
+	include i3 = -1 among the search.
+
+2018-09-08  Bruno Haible  <bruno@clisp.org>
+
+	Correct width of columns when outputting the asso_values array.
+	Patch by Frank Wojcik <frankw@touristinresidence.com>.
+	* src/output.cc (Output::output_hash_function): Increase the
+	field_width by 1 if _max_hash_value+1 is a power of 10.
+
+2018-07-25  Bruno Haible  <bruno@clisp.org>
+
+	Avoid "implicit fallthrough" warnings in the generated code.
+	Reported by Phil Willoughby at
+	<https://lists.gnu.org/archive/html/bug-gperf/2018-07/msg00002.html>.
+	* src/output.cc (Output::output_hash_function): Emit a more elaborate
+	fallthrough marker.
+	* tests/*.exp: Update.
+
+2018-04-24  Bruno Haible  <bruno@clisp.org>
+
+	Support input files with CR/LF line terminators.
+	Reported at <https://savannah.gnu.org/bugs/?53732>.
+	* src/input.cc (Input::read_input): Convert CR/LF sequences to LF.
+
+2018-01-27  Bruno Haible  <bruno@clisp.org>
+
+	Rename some files.
+	* INSTALL.windows: Renamed from README.windows.
+	* INSTALL.vms: Renamed from README.vms.
+	* Makefile.in (SOURCE_FILES): Update.
+
+2018-01-23  Bruno Haible  <bruno@clisp.org>
+
+	Don't use an undocumented Autoconf macro.
+	* src/configure.ac: Use AC_CONFIG_HEADERS instead of AC_CONFIG_HEADER.
+
+2017-07-15  Bruno Haible  <bruno@clisp.org>
+
+	Get rid of autom4te.cache directories (left over from autoconf).
+	* Makefile.devel (configure, */configure, src/config.h.in): Remove
+	autom4te.cache directory after running autoconf or autoheader.
+
+2017-04-16  Bruno Haible  <bruno@clisp.org>
+
+	Initialize the Keyword::_lineno field through the constructor.
+	* src/keyword.h (struct Keyword, struct KeywordExt): Add lineno argument
+	to constructor.
+	(Keyword_Factory::create_keyword): Add lineno argument.
+	* src/keyword.icc (struct Keyword, struct KeywordExt): Add lineno
+	argument to constructor.
+	* src/main.cc (KeywordExt_Factory::create_keyword): Pass lineno argument
+	to KeywordExt constructor.
+	* src/input.cc (Input::read_input): Pass lineno to create_keyword.
+
+2017-03-31  Bruno Haible  <bruno@clisp.org>
+
+	Fix doc build error with perl 5.22.
+	* doc/texi2html (update_sec_num): Omit defined(...) for array.
+
+2017-01-10  Bruno Haible  <bruno@clisp.org>
+
+	Update some URL.
+	* README: Update.
+
 2017-01-02  Marcel Schaible <marcel.schaible@studium.fernuni-hagen.de>
 	
 	* gperf-3.1 released.
@@ -62,7 +247,7 @@
 	* doc/gperf.texi (Contributors): Likewise.
 	* tests/*.{c,exp,out}: Update.
 	Reported by Eric Blake <eblake@redhat.com>
-	at <http://lists.gnu.org/archive/html/bug-gperf/2014-10/msg00000.html>.
+	at <https://lists.gnu.org/archive/html/bug-gperf/2014-10/msg00000.html>.
 
 2016-11-26  Bruno Haible  <bruno@clisp.org>
 
@@ -76,7 +261,7 @@
 	'in_word_set'.
 	* NEWS: Mention the change.
 	Reported by Pedro Giffuni <pfg@FreeBSD.org>
-	at <http://lists.gnu.org/archive/html/bug-gperf/2014-08/msg00000.html>.
+	at <https://lists.gnu.org/archive/html/bug-gperf/2014-08/msg00000.html>.
 
 2016-11-26  Bruno Haible  <bruno@clisp.org>
 
@@ -84,7 +269,7 @@
 	* lib/configure.ac (AR): Determine through AC_CHECK_TOOL.
 	* lib/Makefile.in (AR): Use value determined by 'configure'.
 	Reported by György Andrasek <jurily@gmail.com>
-	at <http://lists.gnu.org/archive/html/bug-gperf/2014-04/msg00000.html>.
+	at <https://lists.gnu.org/archive/html/bug-gperf/2014-04/msg00000.html>.
 
 2016-11-26  Bruno Haible  <bruno@clisp.org>
 

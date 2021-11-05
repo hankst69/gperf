@@ -1,5 +1,5 @@
 /* Input routines.
-   Copyright (C) 1989-1998, 2002-2004, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2002-2004, 2011, 2017-2018 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
    and Bruno Haible <bruno@clisp.org>.
 
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Specification. */
 #include "input.h"
@@ -262,6 +262,30 @@ Input::read_input ()
                  pretty_input_file_name ());
       exit (1);
     }
+
+  /* Convert CR/LF line terminators (Windows) to LF line terminators (Unix).
+     GCC 3.3 and newer support CR/LF line terminators in C sources on Unix,
+     so we do the same.
+     The so-called "text mode" in stdio on Windows translates CR/LF to \n
+     automatically, but here we also need this conversion on Unix.  As a side
+     effect, on Windows we also parse CR/CR/LF into a single \n, but this
+     is not a problem.  */
+  {
+    char *p = input;
+    char *p_end = input + input_length;
+    /* Converting the initial segment without CRs is a no-op.  */
+    while (p < p_end && *p != '\r')
+      p++;
+    /* Then start the conversion for real.  */
+    char *q = p;
+    while (p < p_end)
+      {
+        if (p[0] == '\r' && p + 1 < p_end && p[1] == '\n')
+          p++;
+        *q++ = *p++;
+      }
+    input_length = q - input;
+  }
 
   /* We use input_end as a limit, in order to cope with NUL bytes in the
      input.  But note that one trailing NUL byte has been added after
@@ -972,8 +996,7 @@ Input::read_input ()
 
             /* Allocate Keyword and add it to the list.  */
             Keyword *new_kw = _factory->create_keyword (keyword, keyword_length,
-                                                        rest);
-            new_kw->_lineno = lineno;
+                                                        rest, lineno);
             *list_tail = new Keyword_List (new_kw);
             list_tail = &(*list_tail)->rest();
           }
