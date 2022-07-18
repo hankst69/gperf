@@ -5,12 +5,8 @@
 # autoconf.
 #
 # This script requires autoconf-2.64..2.71 in the PATH.
-# It also requires either
-#   - the GNULIB_TOOL environment variable pointing to the gnulib-tool script
-#     in a gnulib checkout, or
-#   - an internet connection.
 
-# Copyright (C) 2003-2021 Free Software Foundation, Inc.
+# Copyright (C) 2003-2022 Free Software Foundation, Inc.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,21 +21,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Prerequisite (if not used from a released tarball): ./autopull.sh
 # Usage: ./autogen.sh
-
-GNULIB_REPO_URL="https://git.savannah.gnu.org/gitweb/?p=gnulib.git;a=blob_plain;hb=HEAD;f="
-
-for file in build-aux/install-sh build-aux/mkinstalldirs \
-            build-aux/compile build-aux/ar-lib; do
-  if test -n "$GNULIB_TOOL"; then
-    $GNULIB_TOOL --copy-file $file $file
-  else
-    wget -q --timeout=5 -O $file.tmp "${GNULIB_REPO_URL}$file" \
-      && mv $file.tmp $file
-  fi
-done
-chmod a+x build-aux/install-sh build-aux/mkinstalldirs \
-          build-aux/compile build-aux/ar-lib
 
 make -f Makefile.devel totally-clean all || exit $?
 
