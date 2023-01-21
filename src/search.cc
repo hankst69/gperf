@@ -1,4 +1,4 @@
-/* Search algorithm.
+/* Search algorithm for the default gperf algo.
    Copyright (C) 1989-1998, 2000, 2002-2003, 2009, 2016 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
    and Bruno Haible <bruno@clisp.org>.
@@ -30,6 +30,7 @@
 #include "options.h"
 #include "hash-table.h"
 #include "config.h"
+#include "nbperf.h"
 
 /* ============================== Portability ============================== */
 
@@ -145,6 +146,10 @@ Search::prepare ()
         _max_key_len = keyword->_allchars_length;
       if (_min_key_len > keyword->_allchars_length)
         _min_key_len = keyword->_allchars_length;
+      keyword->_selchars = NULL;
+      keyword->_selchars_length = 0;
+      keyword->_duplicate_link = NULL;
+      keyword->_hash_value = 0;
     }
 
   /* Exit program if an empty string is used as keyword, since the comparison
@@ -257,7 +262,7 @@ Search::count_duplicates_tuple (const Positions& positions, const unsigned int *
   return count;
 }
 
-/* Find good key positions.  */
+/* Find good key positions for the default gperf algo.  */
 
 void
 Search::find_positions ()
@@ -1596,6 +1601,100 @@ Search::optimize ()
   /* Preparations.  */
   prepare ();
 
+  if (option.is_mph_algo())
+    {
+      int rv;
+      int i = 0;
+      uint32_t max_iterations = 0xffffffU;
+      struct nbperf *nbperf = option.nbperf();
+
+      char** keys = (char**)malloc(_total_keys * sizeof(char*));
+      size_t *keylens = (size_t *)malloc(_total_keys * sizeof(size_t));
+      for (KeywordExt_List *temp = _head; temp; temp = temp->rest(), i++)
+        {
+          KeywordExt *keyword = temp->first();
+          const char *k = keyword->_allchars;
+          const size_t len = keyword->_allchars_length;
+          if (option[PADDING])
+            {
+              /* with mi_vector_hash we need 4 byte padding for faster hashing */
+              if (len % 4 == 0) {
+#ifdef HAVE_STRNDUP
+                if ((keys[i] = strndup(k, len)) == NULL)
+                  errx(1, "strndup failed");
+#else
+                if ((keys[i] = strdup(k)) == NULL)
+                  errx(1, "strdup failed");
+                keys[i][len] = '\0';
+#endif
+              }
+              else {
+                ssize_t padded_len = len + (4 - (len % 4));
+                if ((keys[i] = (char*)calloc(padded_len, 1)) == NULL)
+                  errx(1, "calloc failed");
+                memcpy((char*)keys[i], k, len);
+              }
+            }
+          else
+            {
+#ifdef HAVE_STRNDUP
+              if ((keys[i] = strndup(k, len)) == NULL)
+                errx(1, "strndup failed");
+#else
+              if ((keys[i] = strdup(k)) == NULL)
+                errx(1, "strdup failed");
+              keys[i][len] = '\0';
+#endif
+            }
+          keylens[i] = len;
+        }
+      nbperf->n = _total_keys;
+      nbperf->keys = (const void * __restrict *)keys;
+      nbperf->keylens = (const size_t *)keylens;
+      _total_duplicates = 0;
+
+      if (option[CHM_ALGO])
+        {
+          for (;;) {
+            rv = chm_compute(nbperf);
+            if (!rv)
+              break;
+            if (nbperf->has_duplicates)
+              errx(1, "Duplicate keys forbidden");
+            fputc('.', stderr);
+            if (--max_iterations == 0)
+              errx(1, "Iteration count reached");
+          }
+        }
+      else if (option[CHM3_ALGO])
+        {
+          for (;;) {
+            rv = chm3_compute(nbperf);
+            if (!rv)
+              break;
+            if (nbperf->has_duplicates)
+              errx(1, "Duplicate keys forbidden");
+            fputc('.', stderr);
+            if (--max_iterations == 0)
+              errx(1, "Iteration count reached");
+          }
+        }
+      else if (option[BPZ_ALGO])
+        {
+          for (;;) {
+            rv = bpz_compute(nbperf);
+            if (!rv)
+              break;
+            if (nbperf->has_duplicates)
+              errx(1, "Duplicate keys forbidden");
+            fputc('.', stderr);
+            if (--max_iterations == 0)
+              errx(1, "Iteration count reached");
+          }
+        }
+      return;
+    }
+
   /* Step 1: Finding good byte positions.  */
   find_positions ();
 
@@ -1656,6 +1755,27 @@ Search::optimize ()
 
 Search::~Search ()
 {
+  if (option.is_mph_algo())
+    {
+      struct nbperf *nbperf = option.nbperf();
+
+      if (option[DEBUG])
+        fprintf (stderr, "\nDumping key list information:\n"
+                 "total keywords = %d\n"
+                 "duplicates = %d\n"
+                 "minimum key length = %d\n"
+                 "maximum key length = %d\n",
+                 _total_keys, nbperf->has_duplicates,
+                 _min_key_len, _max_key_len);
+
+      free ((void*)nbperf->keylens);
+      for (size_t i=0; i < nbperf->n; i++)
+        free ((void*)nbperf->keys[i]);
+      free ((void*)nbperf->keys);
+
+      return;
+    }
+
   delete _collision_detector;
   if (option[DEBUG])
     {

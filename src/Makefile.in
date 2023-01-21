@@ -47,6 +47,8 @@ EXEEXT = @EXEEXT@
 MV = mv
 LN = ln
 RM = rm -f
+XXD = @XXD@
+SED = @SED@
 @SET_MAKE@
 
 # Programs used by "make install":
@@ -61,16 +63,23 @@ SHELL = /bin/sh
 
 VPATH = $(srcdir)
 
-OBJECTS  = version.$(OBJEXT) positions.$(OBJEXT) options.$(OBJEXT) keyword.$(OBJEXT) keyword-list.$(OBJEXT) \
-           input.$(OBJEXT) bool-array.$(OBJEXT) hash-table.$(OBJEXT) search.$(OBJEXT) output.$(OBJEXT) output-javascript.$(OBJEXT) output-lua.$(OBJEXT) main.$(OBJEXT)
+OBJECTS =  main.$(OBJEXT) version.$(OBJEXT) positions.$(OBJEXT)		\
+           options.$(OBJEXT) keyword.$(OBJEXT) keyword-list.$(OBJEXT)	\
+           input.$(OBJEXT) bool-array.$(OBJEXT) hash-table.$(OBJEXT)	\
+           search.$(OBJEXT) output.$(OBJEXT) nbperf-chm.$(OBJEXT)	\
+		   output-javascript.$(OBJEXT) output-lua.$(OBJEXT)           \
+           nbperf-chm3.$(OBJEXT) nbperf-bdz.$(OBJEXT)			\
+           graph2.$(OBJEXT) graph3.$(OBJEXT) mi_vector_hash.$(OBJEXT)
+# These need to be included into generated MPH .c code */
+HASHES   = mi_vector_hash.c wyhash3.h wyhash.h fnv3.h fnv.h crc3.h
 LIBS     = ../lib/libgp.a @GPERF_LIBM@
-CPPFLAGS = @CPPFLAGS@ -I. -I$(srcdir)/../lib
+CPPFLAGS = @CPPFLAGS@ -I. -I$(srcdir)/../lib -I$(srcdir)
 
 TARGETPROG = gperf$(EXEEXT)
 
 all : $(TARGETPROG)
 
-$(TARGETPROG): $(OBJECTS)
+$(TARGETPROG): $(OBJECTS) Makefile
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(LIBS)
 
 # Don't use implicit rules, since AIX "make" and OSF/1 "make" don't always
@@ -92,6 +101,7 @@ KEYWORD_LIST_H = keyword-list.h keyword-list.icc $(KEYWORD_H)
 INPUT_H = input.h $(KEYWORD_LIST_H)
 BOOL_ARRAY_H = bool-array.h bool-array.icc $(OPTIONS_H)
 HASH_TABLE_H = hash-table.h $(KEYWORD_H)
+NBPERF_H = nbperf.h output.h $(KEYWORD_LIST_H) $(POSITIONS_H)
 SEARCH_H = search.h $(KEYWORD_LIST_H) $(POSITIONS_H) $(BOOL_ARRAY_H)
 OUTPUT_H = output.h output-javascript.h output-lua.h $(KEYWORD_LIST_H) $(POSITIONS_H)
 
@@ -99,7 +109,7 @@ version.$(OBJEXT): version.cc $(VERSION_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/version.cc
 positions.$(OBJEXT): positions.cc $(POSITIONS_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/positions.cc
-options.$(OBJEXT): options.cc $(OPTIONS_H) $(VERSION_H)
+options.$(OBJEXT): options.cc $(OPTIONS_H) $(VERSION_H) mi_vector_hash.h
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/options.cc
 keyword.$(OBJEXT): keyword.cc $(KEYWORD_H) $(POSITIONS_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/keyword.cc
@@ -111,16 +121,39 @@ bool-array.$(OBJEXT): bool-array.cc $(BOOL_ARRAY_H) $(OPTIONS_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/bool-array.cc
 hash-table.$(OBJEXT): hash-table.cc $(HASH_TABLE_H) $(OPTIONS_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/hash-table.cc
-search.$(OBJEXT): search.cc $(SEARCH_H) $(OPTIONS_H) $(HASH_TABLE_H) $(CONFIG_H)
+search.$(OBJEXT): search.cc $(SEARCH_H) $(OPTIONS_H) $(HASH_TABLE_H) $(CONFIG_H) $(NBPERF_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/search.cc
-output.$(OBJEXT): output.cc $(OUTPUT_H) $(OPTIONS_H) $(VERSION_H)
+output.$(OBJEXT): output.cc $(OUTPUT_H) $(OPTIONS_H) $(VERSION_H) $(CONFIG_H) $(NBPERF_H) output.ic
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/output.cc
 output-javascript.$(OBJEXT): output-javascript.cc $(OUTPUT_H) $(OPTIONS_H) $(VERSION_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/output-javascript.cc
 output-lua.$(OBJEXT): output-lua.cc $(OUTPUT_H) $(OPTIONS_H) $(VERSION_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/output-lua.cc
+graph2.$(OBJEXT): graph2.cc graph2.h $(NBPERF_H)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/graph2.cc
+graph3.$(OBJEXT): graph3.cc graph2.cc $(NBPERF_H)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/graph3.cc
+nbperf-chm.$(OBJEXT): nbperf-chm.cc $(NBPERF_H)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/nbperf-chm.cc
+nbperf-chm3.$(OBJEXT): nbperf-chm3.cc nbperf-chm.cc $(NBPERF_H)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/nbperf-chm3.cc
+nbperf-bdz.$(OBJEXT): nbperf-bdz.cc graph2.h $(NBPERF_H)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/nbperf-bdz.cc
+mi_vector_hash.$(OBJEXT): mi_vector_hash.h mi_vector_hash.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $(srcdir)/mi_vector_hash.c
 main.$(OBJEXT): main.cc $(OPTIONS_H) $(INPUT_H) $(SEARCH_H) $(OUTPUT_H)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $(srcdir)/main.cc
+output.ic: $(HASHES)
+	$(XXD) --version && ( \
+	echo "/* ex: set ro ft=c: -*- mode: c; buffer-read-only: t -*- */" >$@; \
+	echo "/* C code of $(HASHES), generated via xxd */" >>$@; \
+	for h in $(HASHES); do $(XXD) -i $$h >>$@; done )
+
+main_perf.$(OBJEXT): main.cc $(OPTIONS_H) $(INPUT_H) $(SEARCH_H) $(OUTPUT_H)
+	$(CXX) $(CXXFLAGS) -DPERF $(CPPFLAGS) -c $(srcdir)/main.cc -o $@
+gperf_perf$(EXEEXT): main_perf.$(OBJEXT) $(OBJECTS) Makefile
+	$(CXX) -DPERF $(CXXFLAGS) $(LDFLAGS) -o $@ main_perf.$(OBJEXT) \
+	  $(filter-out main.$(OBJEXT),$(OBJECTS)) $(LIBS)
 
 install : all force
 	$(MKINSTALLDIRS) $(DESTDIR)$(bindir)
@@ -132,12 +165,16 @@ installdirs : force
 uninstall : force
 	$(RM) $(DESTDIR)$(bindir)/$(TARGETPROG)
 
+Makefile: Makefile.in
+	./config.status Makefile
+
 check : all
 
 mostlyclean : clean
 
 clean : force
-	$(RM) *~ *.s *.$(OBJEXT) *.a $(TARGETPROG) $(TARGETPROG).manifest core
+	$(RM) *~ *.s *.$(OBJEXT) *.a $(TARGETPROG) $(TARGETPROG).manifest core \
+	  gperf_perf$(EXEEXT)
 
 distclean : clean
 	$(RM) config.status config.log config.cache Makefile config.h
@@ -157,6 +194,8 @@ SOURCE_FILES = \
   hash-table.cc $(HASH_TABLE_H) \
   search.cc $(SEARCH_H) \
   output.cc $(OUTPUT_H) \
+  graph2.cc graph3.cc graph2.h \
+  nbperf-chm.cc nbperf-chm3.cc nbperf-bdz.cc nbperf.h \
   main.cc
 # List of distributed files imported from other packages.
 IMPORTED_FILES =
