@@ -28,7 +28,7 @@
 #include <limits.h> /* defines SCHAR_MAX etc. */
 #include "options.h"
 #include "version.h"
-#include "config.h"
+//#include "config.h"
 
 /* ============================== Portability ============================== */
 

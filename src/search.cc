@@ -29,7 +29,7 @@
 #include <limits.h> /* defines INT_MIN, INT_MAX, UINT_MAX */
 #include "options.h"
 #include "hash-table.h"
-#include "config.h"
+//#include "config.h"
 
 /* ============================== Portability ============================== */
 
