@@ -28,6 +28,9 @@
 #include "output-javascript.h"
 #include "output-lua.h"
 
+#ifdef PERF
+#include "../tests/perf.h"
+#endif
 
 /* ------------------------------------------------------------------------- */
 
@@ -65,6 +68,9 @@ main (int argc, char *argv[])
         exit (1);
       }
 
+#ifdef PERF
+  uint64_t t0 = timer_start();
+#endif
   {
     /* Initialize the keyword list.  */
     KeywordExt_Factory factory;
@@ -77,21 +83,7 @@ main (int argc, char *argv[])
     {
       /* Search for a good hash function.  */
       Search searcher (list);
-      searcher.optimize ();
-      list = searcher._head;
-
-      /* Open the output file.  */
-      if (option.get_output_file_name ())
-        if (strcmp (option.get_output_file_name (), "-") != 0)
-          if (!freopen (option.get_output_file_name (), "w", stdout))
-            {
-              fprintf (stderr, "Cannot open output file '%s'\n",
-                       option.get_output_file_name ());
-              exit (1);
-            }
-
-      {
-        /* Output the hash function code.  */
+      /* Output the hash function code.  */
         if (option[JAVASCRIPT])
           {
             OutputJavascript outputter (searcher._head,
@@ -115,7 +107,6 @@ main (int argc, char *argv[])
                                         searcher._total_duplicates,
                                         searcher._alpha_size,
                                         searcher._asso_values);
-            outputter.output ();
           }
         else if (option[LUA])
           {
@@ -140,7 +131,6 @@ main (int argc, char *argv[])
                                  searcher._total_duplicates,
                                  searcher._alpha_size,
                                  searcher._asso_values);
-            outputter.output ();
           }
         else
           {
@@ -165,40 +155,75 @@ main (int argc, char *argv[])
                               searcher._total_duplicates,
                               searcher._alpha_size,
                               searcher._asso_values);
-            outputter.output ();
           }
 
-        /* Check for write error on stdout.  */
-        exitcode = 0;
-        if (fflush (stdout) || ferror (stdout))
-          {
-            fprintf (stderr, "error while writing output file\n");
-            exitcode = 1;
-          }
+      struct nbperf *_nbperf = option.nbperf();
+      _nbperf->out = &outputter;
 
-        /* Here we run the Output destructor.  */
+      searcher.optimize ();
+      outputter.update_searcher (searcher._head,
+				 searcher._total_keys,
+				 searcher._max_key_len,
+				 searcher._min_key_len,
+				 searcher._hash_includes_len,
+				 searcher._key_positions,
+				 searcher._alpha_inc,
+				 searcher._total_duplicates,
+				 searcher._alpha_size,
+				 searcher._asso_values);
+      list = searcher._head;
+
+      /* Open the output file.  */
+      if (option.get_output_file_name ())
+        if (strcmp (option.get_output_file_name (), "-") != 0)
+          if (!freopen (option.get_output_file_name (), "w", stdout))
+            {
+              fprintf (stderr, "Cannot open output file '%s'\n",
+                       option.get_output_file_name ());
+              exit (1);
+            }
+
+      outputter.output ();
+
+      /* Check for write error on stdout.  */
+      exitcode = 0;
+      if (fflush (stdout) || ferror (stdout))
+	{
+	  fprintf (stderr, "error while writing output file\n");
+	  exitcode = 1;
+	}
+
+#ifdef PERF
+      {
+        uint64_t t1 = timer_end();
+        FILE *f = fopen ("gperf.log", "a");
+        fprintf(f, "%20zu %20ld\n", searcher._total_keys, (signed long)(t1 - t0));
+        fclose (f);
       }
-      /* Here we run the Search destructor.  */
+#endif
+
+      /* Here we run the Search and Output destructors.  */
     }
 
     /* Also delete the list that was allocated inside Input and reordered
        inside Search.  */
     for (KeywordExt_List *ptr = list; ptr; ptr = ptr->rest())
       {
-        KeywordExt *keyword = ptr->first();
-        do
-          {
-            KeywordExt *next_keyword = keyword->_duplicate_link;
-            delete[] const_cast<unsigned int *>(keyword->_selchars);
-            if (keyword->_rest != empty_string)
-              delete[] const_cast<char*>(keyword->_rest);
-            if (!(keyword->_allchars >= inputter._input
-                  && keyword->_allchars < inputter._input_end))
-              delete[] const_cast<char*>(keyword->_allchars);
-            delete keyword;
-            keyword = next_keyword;
-          }
-        while (keyword != NULL);
+	KeywordExt *keyword = ptr->first();
+	do
+	  {
+	    KeywordExt *next_keyword = keyword->_duplicate_link;
+	    if (!option.is_mph_algo())
+	      delete[] const_cast<unsigned int *>(keyword->_selchars);
+	    if (keyword->_rest != empty_string)
+	      delete[] const_cast<char*>(keyword->_rest);
+	    if (!(keyword->_allchars >= inputter._input
+		  && keyword->_allchars < inputter._input_end))
+	      delete[] const_cast<char*>(keyword->_allchars);
+	    delete keyword;
+	    keyword = next_keyword;
+	  }
+	while (keyword != NULL);
       }
     delete_list (list);
 

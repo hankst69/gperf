@@ -1,4 +1,4 @@
-/* Inline Functions for options.{h,cc}.
+/* Inline Functions for options.{h,cc}. -*- C++ -*-
 
    Copyright (C) 1989-1998, 2000, 2002-2004, 2011 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
@@ -33,6 +33,14 @@ INLINE void
 Options::set (Option_Type option)
 {
   _option_word |= option;
+}
+
+/* Clears a given boolean option.  */
+INLINE void
+Options::unset (Option_Type option)
+{
+    unsigned ival = (unsigned)option;
+    _option_word &= ~ival;
 }
 
 /* Returns the input file name.  */
@@ -117,6 +125,13 @@ INLINE const char *
 Options::get_hash_name () const
 {
   return _hash_name;
+}
+
+/* Returns the mph hash function.  */
+INLINE const enum Option_Mph_Hash_Function
+Options::get_mph_hash_function () const
+{
+  return _mph_hash_function;
 }
 
 /* Returns the hash table array name.  */

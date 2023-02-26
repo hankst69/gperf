@@ -27,8 +27,15 @@
 #include <ctype.h>  /* declares isdigit() */
 #include <limits.h> /* defines CHAR_MAX */
 //#include "filename.h"
+#include <cinttypes> /* declares PRIx32 */
 #include "getopt.h"
 #include "version.h"
+#include "mi_vector_hash.h"
+#include "wyhash.h"
+#include "wyhash3.h"
+#include "fnv.h"
+#include "fnv3.h"
+#include "crc3.h"
 
 /* Global option coordinator for the entire program.  */
 Options option;
@@ -68,6 +75,9 @@ static const char *const DEFAULT_CONSTANTS_PREFIX = "";
 
 /* Default delimiters that separate keywords from their attributes.  */
 static const char *const DEFAULT_DELIMITERS = ",";
+
+/* Default MPH hash function.  */
+static const enum Option_Mph_Hash_Function DEFAULT_MPH_HASH_FUNCTION = e_jenkins;
 
 /* Prints program usage to given stream.  */
 
@@ -124,7 +134,8 @@ Options::long_usage (FILE * stream)
            "  -L, --language=LANGUAGE-NAME\n"
            "                         Generates code in the specified language. Languages\n"
            "                         handled are currently C++, ANSI-C, C, KR-C, JavaScript\n"
-           "                         and Lua. The default is ANSI-C.\n");
+           "                         and Lua. The default is ANSI-C.\n"
+           "                         KR-C is incompatible with the MPH hashes.\n");
   fprintf (stream, "\n");
   fprintf (stream,
            "Details in the output code:\n");
@@ -142,7 +153,8 @@ Options::long_usage (FILE * stream)
   fprintf (stream,
            "  -N, --lookup-function-name=NAME\n"
            "                         Specify name of generated lookup function. Default\n"
-           "                         name is 'in_word_set'.\n");
+           "                         name is 'in_word_set'.\n"
+           "                         -N NONE generates no lookup function nor table.\n");
   fprintf (stream,
            "  -X, --no-lookup-function\n"
            "                         Do not output lookup function.\n");
@@ -195,6 +207,14 @@ Options::long_usage (FILE * stream)
            "                         Specify name of length table array. Default name is\n"
            "                         'lengthtable'.\n");
   fprintf (stream,
+           "  -T, --omit-struct-type\n"
+           "                         Prevents the transfer of the type declaration to the\n"
+           "                         output file. Use this option if the type is already\n"
+           "                         defined elsewhere.\n");
+  fprintf (stream, "\n");
+  fprintf (stream,
+           "Algorithms employed by gperf:\n");
+  fprintf (stream,
            "  -S, --switch=COUNT     Causes the generated C code to use a switch\n"
            "                         statement scheme, rather than an array lookup table.\n"
            "                         This can lead to a reduction in both time and space\n"
@@ -206,13 +226,31 @@ Options::long_usage (FILE * stream)
            "                         large, say 1000000, the generated C code does a\n"
            "                         binary search.\n");
   fprintf (stream,
-           "  -T, --omit-struct-type\n"
-           "                         Prevents the transfer of the type declaration to the\n"
-           "                         output file. Use this option if the type is already\n"
-           "                         defined elsewhere.\n");
-  fprintf (stream, "\n");
+           "  --chm                  Use the CHM algorithm, which creates order preserving,\n"
+           "                         optimal minimal perfect hashes (MPH)\n"
+           "                         and can efficiently deal with huge input.\n");
   fprintf (stream,
-           "Algorithm employed by gperf:\n");
+           "  --chm3                 Use the CHM algorithm with 3 table lookups instead of 2,\n"
+           "                         but with a much smaller code size. (MPH)\n");
+  fprintf (stream,
+           "  --bpz                  Use the BPZ algorithm, which creates non-order preserving,\n"
+           "                         optimal minimal perfect hashes (MPH)\n"
+           "                         and can efficiently deal with huge input, with best-known\n"
+           "                         code sizes.\n");
+  fprintf (stream,
+           "  --mph-hash-function=mi_vector_hash|jenkins|wyhash|fnv|fnv3|crc\n"
+           "                         Select the MPH hash function. Default mi_vector_hash.\n");
+  fprintf (stream,
+           "  -u, --utilisation=FACTOR\n"
+           "                         Tune the space efficiency for chm, chm2 and bpz.\n"
+           "                         The default for chm is 2, for chm3 and bpz 1.24.\n");
+  fprintf (stream,
+           "  -f, --allow-hash-fudging\n"
+           "                         Fudge the hashes a bit if needed for chm, chm2 and bpz.\n\n");
+  fprintf (stream,
+           "  --no-padding\n"
+           "                         Disabled padding of the keyword strings with chm, chm2\n"
+           "                         or bpz, which is only needed with asan or valgrind.\n\n");
   fprintf (stream,
            "  -k, --key-positions=KEYS\n"
            "                         Select the key positions used in the hash function.\n"
@@ -475,7 +513,7 @@ Options::Options ()
     _initial_asso_value (0),
     _asso_iterations (0),
     _total_switches (1),
-    _size_multiple (1),
+    _size_multiple (1.0f),
     _function_name (DEFAULT_FUNCTION_NAME),
     _slot_name (DEFAULT_SLOT_NAME),
     _initializer_suffix (DEFAULT_INITIALIZER_SUFFIX),
@@ -486,8 +524,12 @@ Options::Options ()
     _stringpool_name (DEFAULT_STRINGPOOL_NAME),
     _constants_prefix (DEFAULT_CONSTANTS_PREFIX),
     _delimiters (DEFAULT_DELIMITERS),
-    _key_positions ()
+    _key_positions (),
+    _mph_hash_function (DEFAULT_MPH_HASH_FUNCTION)
 {
+  memset(&_nbperf, 0, sizeof(struct nbperf));
+  _nbperf.hash_name = DEFAULT_HASH_NAME;
+  _nbperf.check_duplicates = 1;
 }
 
 /* Dumps option status when debugging is enabled.  */
@@ -514,15 +556,18 @@ Options::~Options ()
                "\nGLOBAL is.......: %s"
                "\nNULLSTRINGS is..: %s"
                "\nSHAREDLIB is....: %s"
+               "\nALGORITHM is....: %s"
                "\nSWITCH is.......: %s"
                "\nNOTYPE is.......: %s"
                "\nNOLOOKUPFUNC is.: %s"
                "\nDUP is..........: %s"
                "\nNOLENGTH is.....: %s"
                "\nRANDOM is.......: %s"
+               "\nPADDING is......: %s"
                "\nDEBUG is........: %s"
                "\nlookup function name = %s"
                "\nhash function name = %s"
+               "\nMPH hash function = %s"
                "\nword list name = %s"
                "\nlength table name = %s"
                "\nstring pool name = %s"
@@ -551,14 +596,25 @@ Options::~Options ()
                _option_word & GLOBAL ? "enabled" : "disabled",
                _option_word & NULLSTRINGS ? "enabled" : "disabled",
                _option_word & SHAREDLIB ? "enabled" : "disabled",
+               _option_word & SWITCH ? "switch" :
+                 _option_word & CHM_ALGO ? "chm" :
+                 _option_word & CHM3_ALGO ? "chm3" :
+                 _option_word & BPZ_ALGO ? "bzp" : "gperf",
                _option_word & SWITCH ? "enabled" : "disabled",
                _option_word & NOTYPE ? "enabled" : "disabled",
                _option_word & NOLOOKUPFUNC ? "enabled" : "disabled",
                _option_word & DUP ? "enabled" : "disabled",
                _option_word & NOLENGTH ? "enabled" : "disabled",
                _option_word & RANDOM ? "enabled" : "disabled",
+               _option_word & PADDING ? "enabled" : "disabled",
                _option_word & DEBUG ? "enabled" : "disabled",
-               _function_name, _hash_name, _wordlist_name, _lengthtable_name,
+               _function_name, _hash_name,
+               _mph_hash_function == e_jenkins ? "jenkins" :
+               _mph_hash_function == e_wyhash ? "wyhash" :
+               _mph_hash_function == e_fnv ? "fnv" :
+               _mph_hash_function == e_fnv3 ? "fnv3" :
+               _mph_hash_function == e_crc ? "crc" : "<invalid>",
+               _wordlist_name, _lengthtable_name,
                _stringpool_name, _slot_name, _initializer_suffix,
                _asso_iterations, _jump, _size_multiple, _initial_asso_value,
                _delimiters, _total_switches);
@@ -581,8 +637,104 @@ Options::~Options ()
     }
 }
 
+extern "C" {
+  /* Callbacks for our supported MPH hash variants.  */
+  static void small_seed(struct nbperf *nbperf)
+  {
+    static uint32_t predictable_counter;
+    if (nbperf->predictable)
+      nbperf->seed[0] = predictable_counter++;
+    else
+      nbperf->seed[0] = rand();
+  }
+  static void large_seed(struct nbperf *nbperf)
+  {
+    static uint32_t predictable_counter;
+    if (nbperf->predictable)
+      {
+        nbperf->seed[0] = predictable_counter++;
+        nbperf->seed[1] = predictable_counter++;
+      }
+    else
+      {
+        nbperf->seed[0] = rand();
+        nbperf->seed[1] = rand();
+      }
+  }
+  static void mi_vector_hash_compute(struct nbperf *nbperf, const void *key, size_t keylen,
+                                     uint32_t *hashes)
+  {
+    mi_vector_hash(key, keylen, nbperf->seed[0], hashes);
+  }
+  static void mi_vector_hash_print(struct nbperf *nbperf, const char *indent,
+                                   const char *key, const char *keylen, const char *hash)
+  {
+    Output *out = nbperf->out;
+    out->add_hash_body ("%smi_vector_hash(%s, %s, UINT32_C(0x%08" PRIx32 "), %s);\n",
+                        indent, key, keylen, nbperf->seed[0], hash);
+  }
+  static void wyhash_seed(struct nbperf *nbperf)
+  {
+    large_seed (nbperf);
+    if (nbperf->seed[0] == UINT32_C(0x14cc886e) ||
+        nbperf->seed[0] == UINT32_C(0xd637dbf3))
+      nbperf->seed[0]++;
+    if (nbperf->seed[1] == UINT32_C(0x14cc886e) ||
+        nbperf->seed[1] == UINT32_C(0xd637dbf3))
+      nbperf->seed[1]++;
+  }
+  static void wyhash_compute(struct nbperf *nbperf, const void *key, size_t keylen,
+                             uint32_t *hashes)
+  {
+    wyhash3(key, keylen, *(uint64_t*)nbperf->seed, (uint64_t*)hashes);
+  }
+  static void wyhash_print(struct nbperf *nbperf, const char *indent,
+                           const char *key, const char *keylen, const char *hash)
+  {
+    Output *out = nbperf->out;
+    out->add_hash_body ("%swyhash3(%s, %s, UINT64_C(0x%" PRIx64 "), (uint64_t *)%s);\n",
+                        indent, key, keylen, *(uint64_t*)nbperf->seed, hash);
+  }
 
-/* Sets the output language, if not already set.  */
+  static void fnv_compute(struct nbperf *nbperf, const void *key, size_t keylen,
+                          uint32_t *hashes)
+  {
+    fnv(key, keylen, *(uint64_t*)nbperf->seed, (uint64_t*)hashes);
+  }
+  static void fnv_print(struct nbperf *nbperf, const char *indent,
+                        const char *key, const char *keylen, const char *hash)
+  {
+    Output *out = nbperf->out;
+    out->add_hash_body ("%sfnv(%s, %s, UINT64_C(0x%" PRIx64 "), %s);\n",
+                        indent, key, keylen, *(uint64_t*)nbperf->seed, hash);
+  }
+  static void fnv3_compute(struct nbperf *nbperf, const void *key, size_t keylen,
+                          uint32_t *hashes)
+  {
+    fnv3(key, keylen, *(uint64_t*)nbperf->seed, (uint64_t*)hashes);
+  }
+  static void fnv3_print(struct nbperf *nbperf, const char *indent,
+                        const char *key, const char *keylen, const char *hash)
+  {
+    Output *out = nbperf->out;
+    out->add_hash_body ("%sfnv3(%s, %s, UINT64_C(0x%" PRIx64 "), %s);\n",
+                        indent, key, keylen, *(uint64_t*)nbperf->seed, hash);
+  }
+  static void crc_compute(struct nbperf *nbperf, const void *key, size_t keylen,
+                          uint32_t *hashes)
+  {
+    crc3(key, keylen, nbperf->seed[0], (uint64_t*)hashes);
+  }
+  static void crc_print(struct nbperf *nbperf, const char *indent,
+                        const char *key, const char *keylen, const char *hash)
+  {
+    Output *out = nbperf->out;
+    out->add_hash_body ("%scrc3(%s, %s, UINT64_C(0x%" PRIx64 "), %s);\n",
+                        indent, key, keylen, *(uint64_t*)nbperf->seed, hash);
+  }
+}
+
+/* Sets the output language dialect (KRC,C,ANSIC,C++), if not already set.  */
 void
 Options::set_language (const char *language)
 {
@@ -612,7 +764,7 @@ Options::set_language (const char *language)
     }
 }
 
-/* Sets the total number of switch statements, if not already set.  */
+/* Sets the total number of switch statements.  */
 void
 Options::set_total_switches (int total_switches)
 {
@@ -623,86 +775,133 @@ Options::set_total_switches (int total_switches)
     }
 }
 
-/* Sets the generated function name, if not already set.  */
+/* Sets the generated function name.  */
 void
 Options::set_function_name (const char *name)
 {
-  if (_function_name == DEFAULT_FUNCTION_NAME)
-    _function_name = name;
+  _function_name = name;
 }
 
-/* Sets the keyword key name, if not already set.  */
+/* Sets the keyword key name.  */
 void
 Options::set_slot_name (const char *name)
 {
-  if (_slot_name == DEFAULT_SLOT_NAME)
-    _slot_name = name;
+  _slot_name = name;
 }
 
 /* Sets the struct initializer suffix, if not already set.  */
 void
 Options::set_initializer_suffix (const char *initializers)
 {
-  if (_initializer_suffix == DEFAULT_INITIALIZER_SUFFIX)
-    _initializer_suffix = initializers;
+  _initializer_suffix = initializers;
 }
 
 /* Sets the generated class name, if not already set.  */
 void
 Options::set_class_name (const char *name)
 {
-  if (_class_name == DEFAULT_CLASS_NAME)
-    _class_name = name;
+  _class_name = name;
 }
 
-/* Sets the hash function name, if not already set.  */
+/* Sets the hash function name.  */
 void
 Options::set_hash_name (const char *name)
 {
-  if (_hash_name == DEFAULT_HASH_NAME)
-    _hash_name = name;
+  _hash_name = name;
 }
 
-/* Sets the hash table array name, if not already set.  */
+/* Sets the hash table array name.  */
 void
 Options::set_wordlist_name (const char *name)
 {
-  if (_wordlist_name == DEFAULT_WORDLIST_NAME)
-    _wordlist_name = name;
+  _wordlist_name = name;
 }
 
-/* Sets the length table array name, if not already set.  */
+/* Sets the length table array name.  */
 void
 Options::set_lengthtable_name (const char *name)
 {
-  if (_lengthtable_name == DEFAULT_LENGTHTABLE_NAME)
-    _lengthtable_name = name;
+  _lengthtable_name = name;
 }
 
-/* Sets the prefix for the constants, if not already set.  */
+/* Sets the prefix for the constants.  */
 void
 Options::set_constants_prefix (const char *prefix)
 {
-  if (_constants_prefix == DEFAULT_CONSTANTS_PREFIX)
     _constants_prefix = prefix;
 }
 
-/* Sets the string pool name, if not already set.  */
+/* Sets the string pool name.  */
 void
 Options::set_stringpool_name (const char *name)
 {
-  if (_stringpool_name == DEFAULT_STRINGPOOL_NAME)
-    _stringpool_name = name;
+  _stringpool_name = name;
 }
 
-/* Sets the delimiters string, if not already set.  */
+/* Sets the delimiters string.  */
 void
 Options::set_delimiters (const char *delimiters)
 {
-  if (_delimiters == DEFAULT_DELIMITERS)
-    _delimiters = delimiters;
+  _delimiters = delimiters;
 }
 
+/* nbperf specific methods */
+bool
+Options::is_mph_algo () const
+{
+  return _option_word & (CHM_ALGO|CHM3_ALGO|BPZ_ALGO);
+}
+
+struct nbperf *
+Options::nbperf ()
+{
+  return &_nbperf;
+}
+
+void
+Options::set_nbperf ()
+{
+  _nbperf.hash_size = 3; // needed for chm3 and bdz
+  if (_mph_hash_function == e_jenkins) {
+    _nbperf.seed_hash = small_seed;
+    _nbperf.compute_hash = mi_vector_hash_compute;
+    _nbperf.print_hash = mi_vector_hash_print;
+    _option_word |= PADDING;
+  } else if (_mph_hash_function == e_wyhash) {
+    _nbperf.seed_hash = wyhash_seed;
+    _nbperf.compute_hash = wyhash_compute;
+    _nbperf.print_hash = wyhash_print;
+  } else if (_mph_hash_function == e_fnv) {
+    _nbperf.seed_hash = large_seed;
+    _nbperf.compute_hash = fnv_compute;
+    _nbperf.print_hash = fnv_print;
+  } else if (_mph_hash_function == e_fnv3) {
+    _nbperf.seed_hash = large_seed;
+    _nbperf.compute_hash = fnv3_compute;
+    _nbperf.print_hash = fnv3_print;
+  } else if (_mph_hash_function == e_crc) {
+    _nbperf.seed_hash = large_seed;
+    _nbperf.compute_hash = crc_compute;
+    _nbperf.print_hash = crc_print;
+  }
+  if (!(_option_word & RANDOM))
+    _nbperf.predictable = 1;
+  _option_word &= ~POSITIONS;
+  if (_option_word & GLOBAL)
+    _nbperf.static_hash = 1;
+  if (_output_file_name)
+    {
+      if (_nbperf.output)
+        fclose(_nbperf.output);
+      _nbperf.output = fopen(_output_file_name, "w");
+      if (_nbperf.output == NULL) {
+        fprintf(stderr, "cannot open output file");
+        exit(2);
+      }
+    }
+  else
+    _nbperf.output = stdout;
+}
 
 /* Parses the command line Options and sets appropriate flags in option_word.  */
 
@@ -736,7 +935,6 @@ static const struct option long_options[] =
   { "compare-strlen", no_argument, NULL, 'l' }, /* backward compatibility */
   { "compare-lengths", no_argument, NULL, 'l' },
   { "duplicates", no_argument, NULL, 'D' },
-  { "fast", required_argument, NULL, 'f' },
   { "initial-asso", required_argument, NULL, 'i' },
   { "jump", required_argument, NULL, 'j' },
   { "multiple-iterations", required_argument, NULL, 'm' },
@@ -748,6 +946,13 @@ static const struct option long_options[] =
   { "null-strings", no_argument, NULL, CHAR_MAX + 3 },
   { "random", no_argument, NULL, 'r' },
   { "size-multiple", required_argument, NULL, 's' },
+  { "chm", no_argument, NULL, CHAR_MAX + 6 },
+  { "chm3", no_argument, NULL, CHAR_MAX + 7 },
+  { "bpz", no_argument, NULL, CHAR_MAX + 8 },
+  { "mph-hash-function", required_argument, NULL, CHAR_MAX + 9 },
+  { "utilisation", required_argument, NULL, 'u' },
+  { "allow-hash-fudging", no_argument, NULL, 'f' },
+  { "no-padding", no_argument, NULL, CHAR_MAX + 10 },
   { "help", no_argument, NULL, 'h' },
   { "version", no_argument, NULL, 'v' },
   { "debug", no_argument, NULL, 'd' },
@@ -765,7 +970,7 @@ Options::parse_options (int argc, char *argv[])
 
   while ((option_char =
             getopt_long (_argument_count, _argument_vector,
-                         "acCdDe:Ef:F:gGhH:i:Ij:k:K:lL:m:nN:oOpPQ:rs:S:tTvW:XZ:7",
+                         "acCdDe:Ef:F:gGhH:i:Ij:k:K:lL:m:nN:oOpPQ:rs:S:tTu:vW:XZ:7",
                          long_options, NULL))
          != -1)
     {
@@ -805,8 +1010,6 @@ Options::parse_options (int argc, char *argv[])
             _option_word |= ENUM;
             break;
           }
-        case 'f':               /* Generate the hash table "fast".  */
-          break;                /* Not needed any more.  */
         case 'F':
           {
             _initializer_suffix = /*getopt*/optarg;
@@ -827,6 +1030,7 @@ Options::parse_options (int argc, char *argv[])
         case 'H':               /* Sets the name for the hash function.  */
           {
             _hash_name = /*getopt*/optarg;
+            _nbperf.hash_name = _hash_name;
             break;
           }
         case 'i':               /* Sets the initial value for the associated values array.  */
@@ -948,7 +1152,10 @@ Options::parse_options (int argc, char *argv[])
           }
         case 'N':               /* Make generated lookup function name be optarg.  */
           {
-            _function_name = /*getopt*/optarg;
+	    if (strcmp(optarg, "NONE") == 0) /* skip in_word_set generation */
+	      _function_name = NULL;
+	    else
+	      _function_name = /*getopt*/optarg;
             break;
           }
         case 'o':               /* Order input by frequency of key set occurrence.  */
@@ -974,6 +1181,13 @@ Options::parse_options (int argc, char *argv[])
               fprintf (stderr, "warning, -r option supersedes -i, disabling -i option and continuing\n");
             break;
           }
+        case 'f':               /* Allow MPH hash-fudging */
+          {
+            if (is_mph_algo())
+              _nbperf.allow_hash_fudging = 1;
+            // else ignore. was 'fast'
+            break;
+          }
         case 's':               /* Range of associated values, determines size of final table.  */
           {
             float numerator;
@@ -996,6 +1210,8 @@ Options::parse_options (int argc, char *argv[])
                 else
                   invalid = true;
               }
+            if (is_mph_algo())
+              invalid = true;
             if (invalid)
               {
                 fprintf (stderr, "Invalid value for option -s.\n");
@@ -1014,6 +1230,46 @@ Options::parse_options (int argc, char *argv[])
               fprintf (stderr, "Size multiple %g is excessive, did you really mean this?! (try '%s --help' for help)\n", _size_multiple, program_name);
             else if (_size_multiple < 0.01f)
               fprintf (stderr, "Size multiple %g is extremely small, did you really mean this?! (try '%s --help' for help)\n", _size_multiple, program_name);
+            break;
+          }
+        case 'u':               /* Space utilisation for chm, chm3 or bpz only. Similar to -s */
+          {
+            float numerator;
+            float denominator = 1;
+            bool invalid = false;
+            char *endptr;
+
+            numerator = strtod (/*getopt*/optarg, &endptr);
+            if (endptr == /*getopt*/optarg)
+              invalid = true;
+            else if (*endptr != '\0')
+              {
+                if (*endptr == '/')
+                  {
+                    char *denomptr = endptr + 1;
+                    denominator = strtod (denomptr, &endptr);
+                    if (endptr == denomptr || *endptr != '\0')
+                      invalid = true;
+                  }
+                else
+                  invalid = true;
+              }
+            if (!is_mph_algo())
+              invalid = true;
+            _nbperf.c = numerator / denominator;
+            if (_option_word & CHM_ALGO && _nbperf.c < 2.0f)
+              invalid = true;
+            if (_option_word & (CHM3_ALGO|BPZ_ALGO) && _nbperf.c < 1.24f)
+              invalid = true;
+            if (invalid)
+              {
+                fprintf (stderr, "Invalid value for option -u.\n");
+                short_usage (stderr);
+                exit (1);
+              }
+            /* Warnings.  */
+            if (_nbperf.c > 10)
+              fprintf (stderr, "utilisation %g is excessive, did you really mean this?! (try '%s --help' for help)\n", _nbperf.c, program_name);
             break;
           }
         case 'S':               /* Generate switch statement output, rather than lookup table.  */
@@ -1092,6 +1348,101 @@ There is NO WARRANTY, to the extent permitted by law.\n\
         case CHAR_MAX + 5:      /* Sets the prefix for the constants.  */
           {
             _constants_prefix = /*getopt*/optarg;
+            break;
+          }
+        case CHAR_MAX + 6:      /* Sets CHM_ALGO.  */
+          {
+            if (_option_word & (SWITCH|CHM3_ALGO|BPZ_ALGO))
+              {
+                fprintf (stderr, "Invalid --%s, another algorithm already selected.\n", "chm");
+                short_usage (stderr);
+                exit (1);
+              }
+	    if (_option_word & KRC)
+              {
+                fprintf(stderr, "--%s may not be used with -L KR-C.\n", "chm");
+                exit (1);
+              }
+            _option_word |= CHM_ALGO;
+            if (_nbperf.c < 0.1f)
+              _nbperf.c = 2.0f;
+	    set_nbperf ();
+	    break;
+          }
+        case CHAR_MAX + 7:      /* Sets CHM3_ALGO.  */
+          {
+            if (_option_word & (SWITCH|CHM_ALGO|BPZ_ALGO))
+              {
+                fprintf (stderr, "Invalid --%s, another algorithm already selected.\n", "chm3");
+                short_usage (stderr);
+                exit (1);
+              }
+	    if (_option_word & KRC)
+              {
+                fprintf(stderr, "--%s may not be used with -L KR-C.\n", "chm");
+                exit (1);
+              }
+            _option_word |= CHM3_ALGO;
+            if (_nbperf.c < 0.1f)
+              _nbperf.c = 1.24f;
+	    set_nbperf ();
+            break;
+          }
+        case CHAR_MAX + 8:      /* Sets BPZ_ALGO.  */
+          {
+            if (_option_word & (SWITCH|CHM_ALGO|CHM3_ALGO))
+              {
+                fprintf (stderr, "Invalid --%s, another algorithm already selected.\n", "bpz");
+                short_usage (stderr);
+                exit (1);
+              }
+	    if (_option_word & KRC)
+              {
+                fprintf(stderr, "--%s may not be used with -L KR-C.\n", "chm");
+                exit (1);
+              }
+            _option_word |= BPZ_ALGO;
+            if (_nbperf.c < 0.1f)
+              _nbperf.c = 1.24f;
+	    set_nbperf ();
+            break;
+          }
+        case CHAR_MAX + 9:      /* Sets mph-hash-function.  */
+          {
+            if (!(_option_word & (CHM_ALGO|CHM3_ALGO|BPZ_ALGO)))
+              {
+                fprintf (stderr, "--mph-hash-function only valid for MPH algorithms chm,chm3,bpz.\n");
+                short_usage (stderr);
+                exit (1);
+              }
+	    if (strcmp(optarg, "mi_vector_hash") &&
+		strcmp(optarg, "jenkins") && /* a valid alias */
+		strcmp(optarg, "wyhash") &&
+		strcmp(optarg, "crc") &&
+		strcmp(optarg, "fnv") &&
+		strcmp(optarg, "fnv3"))
+	      {
+                fprintf (stderr, "Invalid --mph-hash-function %s\n", optarg);
+                short_usage (stderr);
+                exit (1);
+	      }
+	    else if (strcmp(optarg, "mi_vector_hash") == 0 ||
+                     strcmp(optarg, "jenkins") == 0)
+              _mph_hash_function = e_jenkins;
+	    else if (strcmp(optarg, "wyhash") == 0)
+	      _mph_hash_function = e_wyhash;
+	    else if (strcmp(optarg, "fnv") == 0)
+	      _mph_hash_function = e_fnv;
+	    else if (strcmp(optarg, "fnv3") == 0)
+	      _mph_hash_function = e_fnv3;
+	    else
+	      _mph_hash_function = e_crc;
+	    set_nbperf ();
+            break;
+	  }
+        case CHAR_MAX + 10:      /* --no-padding.  */
+          {
+            option.unset(PADDING);
             break;
           }
         default:

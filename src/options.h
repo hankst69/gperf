@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include "positions.h"
+#include "nbperf.h"
 
 /* Enumeration of the possible boolean options.  */
 
@@ -115,10 +116,31 @@ enum Option_Type
   /* Randomly initialize the associated values table.  */
   RANDOM       = 1 << 23,
 
+  /* Use CHM.  */
+  CHM_ALGO     = 1 << 24,
+
+  /* Use CHM3.  */
+  CHM3_ALGO    = 1 << 25,
+
+  /* Use BPZ.  */
+  BPZ_ALGO     = 1 << 26,
+
+  /* 4-byte padding with MPH mi_vector_hash.  */
+  PADDING      = 1 << 27,
+
   /* --- Informative output --- */
 
   /* Enable debugging (prints diagnostics to stderr).  */
-  DEBUG        = 1 << 24
+  DEBUG        = 1 << 28
+};
+
+enum Option_Mph_Hash_Function
+{
+  e_jenkins,
+  e_wyhash,
+  e_fnv,
+  e_fnv3,
+  e_crc
 };
 
 /* Class manager for gperf program Options.  */
@@ -144,6 +166,15 @@ public:
   bool                  operator[] (Option_Type option) const;
   /* Sets a given boolean option.  */
   void                  set (Option_Type option);
+  /* Clears a given boolean option.  */
+  void                  unset (Option_Type option);
+
+  /* Returns true if CHM, CHM3, or BPZ.  */
+  bool                  is_mph_algo () const;
+  /* Returns pointer to the struct.  */
+  struct nbperf *       nbperf ();
+  /* Initializes the struct.  */
+  void                  set_nbperf ();
 
   /* Returns the input file name.  */
   const char *          get_input_file_name () const;
@@ -175,6 +206,9 @@ public:
   const char *          get_function_name () const;
   /* Sets the generated function name, if not already set.  */
   void                  set_function_name (const char *name);
+
+  /* Returns the selected MPH function name.  */
+  const enum Option_Mph_Hash_Function get_mph_hash_function () const;
 
   /* Returns the keyword key name.  */
   const char *          get_slot_name () const;
@@ -296,6 +330,12 @@ private:
 
   /* Contains user-specified key choices.  */
   Positions             _key_positions;
+
+  /* Selected MPH hash function  */
+  enum Option_Mph_Hash_Function _mph_hash_function;
+
+  /* Contains the MPH-specific nbperf options.  */
+  struct nbperf         _nbperf;
 };
 
 /* Global option coordinator for the entire program.  */
