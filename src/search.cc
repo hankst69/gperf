@@ -1629,7 +1629,7 @@ Search::optimize ()
 #endif
               }
               else {
-                ssize_t padded_len = len + (4 - (len % 4));
+                size_t padded_len = len + (4 - (len % 4));
                 if ((keys[i] = (char*)calloc(padded_len, 1)) == NULL)
                   errx(1, "calloc failed");
                 memcpy((char*)keys[i], k, len);
