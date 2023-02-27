@@ -90,7 +90,7 @@ static int sorting_cmp(const void *a_, const void *b_)
 	i = memcmp(sorting_nbperf->keys[*a], sorting_nbperf->keys[*b],
 	    sorting_nbperf->keylens[*a]);
 	if (i == 0) {
-          errx(1, "has_duplicates \"%s\'\n", sorting_nbperf->keys[*a]);
+          errx(1, "has_duplicates \"%s\'\n", (const char *)sorting_nbperf->keys[*a]);
           sorting_found = 1;
         }
 	return i;
