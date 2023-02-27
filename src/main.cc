@@ -84,9 +84,10 @@ main (int argc, char *argv[])
       /* Search for a good hash function.  */
       Search searcher (list);
       /* Output the hash function code.  */
+	  Output *outputter;
         if (option[JAVASCRIPT])
           {
-            OutputJavascript outputter (searcher._head,
+            outputter = new OutputJavascript(searcher._head,
                                         inputter._struct_decl,
                                         inputter._struct_decl_lineno,
                                         inputter._return_type,
@@ -110,7 +111,7 @@ main (int argc, char *argv[])
           }
         else if (option[LUA])
           {
-            OutputLua outputter (searcher._head,
+			outputter = new OutputLua(searcher._head,
                                  inputter._struct_decl,
                                  inputter._struct_decl_lineno,
                                  inputter._return_type,
@@ -134,7 +135,7 @@ main (int argc, char *argv[])
           }
         else
           {
-            Output outputter (searcher._head,
+			outputter = new Output(searcher._head,
                               inputter._struct_decl,
                               inputter._struct_decl_lineno,
                               inputter._return_type,
@@ -158,10 +159,10 @@ main (int argc, char *argv[])
           }
 
       struct nbperf *_nbperf = option.nbperf();
-      _nbperf->out = &outputter;
+      _nbperf->out = outputter;
 
       searcher.optimize ();
-      outputter.update_searcher (searcher._head,
+      outputter->update_searcher (searcher._head,
 				 searcher._total_keys,
 				 searcher._max_key_len,
 				 searcher._min_key_len,
@@ -183,7 +184,7 @@ main (int argc, char *argv[])
               exit (1);
             }
 
-      outputter.output ();
+      outputter->output ();
 
       /* Check for write error on stdout.  */
       exitcode = 0;
@@ -203,6 +204,8 @@ main (int argc, char *argv[])
 #endif
 
       /* Here we run the Search and Output destructors.  */
+
+	  delete outputter;
     }
 
     /* Also delete the list that was allocated inside Input and reordered
