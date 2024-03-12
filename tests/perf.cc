@@ -19,7 +19,9 @@
 #include <cstddef>
 #include <stdlib.h>
 #include <stdint.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include "perf.h"
 #include <sys/stat.h>
 #include <vector>
