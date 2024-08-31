@@ -1,3 +1,122 @@
+2024-07-22  Bruno Haible  <bruno@clisp.org>
+
+	build: Simplify last change.
+	* Makefile.in (doc/gperf.1): Simplify rule.
+
+2024-07-21  Bruno Haible  <bruno@clisp.org>
+
+	build: Fix failure of "./configure; make dist".
+	* Makefile.in (srcdir, VPATH): New variables.
+	(VERSION): Refer to src/version.cc in $(srcdir).
+	(dist): Depend on doc/gperf.1.
+	(doc/gperf.1): New rule.
+	* doc/Makefile.in (DISTRIBUTED_BUILT_FILES): Remove wildcard patterns.
+	(DISTRIBUTED_BUILT_FILES_EXTRA_PATTERNS): New variable.
+	(distdir): Handle the files from DISTRIBUTED_BUILT_FILES_EXTRA_PATTERNS.
+
+2024-07-21  Bruno Haible  <bruno@clisp.org>
+
+	build: Don't leave an empty gperf.1 on disk if help2man fails.
+	* doc/Makefile.in (gperf.1): Use a temporary file.
+	(clean): Remove this temporary file.
+
+2024-07-21  Bruno Haible  <bruno@clisp.org>
+
+	build: Fix VPATH builds.
+	* doc/Makefile.in (TEXINFO): Look up texi2html in the current directory.
+	(gperf.1): Look up help2man in the source directory. Generate gperf.1 in
+	the source directory.
+
+2024-07-21  Bruno Haible  <bruno@clisp.org>
+
+	build: Fix use of perl on Guix, FreeBSD, NetBSD.
+	* doc/help2man: Search for perl in $PATH.
+
+2024-07-21  Bruno Haible  <bruno@clisp.org>
+
+	build: Fix "make maintainer-clean".
+	* doc/Makefile.in (maintainer-clean): Remove also gperf.1.
+
+2024-06-12  Collin Funk  <collin.funk1@gmail.com>
+
+	doc: Make the detailed menu title appear as intended.
+	* doc/gperf.texi (Top): Add a line break after @detailmenu.
+
+2024-06-05  Bruno Haible  <bruno@clisp.org>
+
+	Fix build (regression 2024-04-04).
+	Reported by Pádraig Brady <P@draigBrady.com> in
+	<https://lists.gnu.org/archive/html/bug-gperf/2024-06/msg00000.html>.
+	* doc/configure.ac: Invoke AC_CONFIG_AUX_DIR, needed for locating
+	install-sh.
+	* lib/configure.ac: Likewise.
+	* src/configure.ac: Likewise.
+	* tests/configure.ac: Likewise.
+
+2024-04-04  Bruno Haible  <bruno@clisp.org>
+
+	Remove outdated Autoconf macro.
+	* aclocal.m4 (CL_PROG_INSTALL): Remove macro.
+	* doc/configure.ac: Invoke AC_PROG_INSTALL instead of CL_PROG_INSTALL.
+	* lib/configure.ac: Likewise.
+	* src/configure.ac: Likewise.
+
+2023-12-30  Bruno Haible  <bruno@clisp.org>
+
+	Mark autoconf 2.72 as supported.
+	* autogen.sh: Update comment.
+
+2023-09-07  Bruno Haible  <bruno@clisp.org>
+
+	Fix "make extracheck" failure (regression 2016-11-27).
+	* tests/validate (KR-C): Remove the test against ' const ', since the
+	input files jstest*.gperf now contain 'const' keywords.
+
+2023-09-07  Bruno Haible  <bruno@clisp.org>
+
+	Avoid "clang -Wimplicit-fallthrough" warnings also in C mode.
+	* src/output.cc (Output::output_hash_function): Enhance the fallthrough
+	marker, to include clang >= 10 in C mode.
+	* tests/*.exp: Update.
+
+2023-09-05  Bruno Haible  <bruno@clisp.org>
+
+	Avoid "gcc -Wmissing-field-initializers" warnings on the generated code.
+	* src/options.h (Options::has_initializer_suffix): New declaration.
+	* src/options.cc (Options::has_initializer_suffix): New function.
+	* src/output.cc (Output::output_keyword_table): If option -t is
+	specified and option -F is not specified, emit '#pragma GCC diagnostic'
+	lines, to silence -Wmissing-field-initializers warnings from gcc or
+	clang.
+	* tests/charsets.exp: Update.
+	* tests/gpc.exp: Likewise.
+	* tests/incomplete.exp: Likewise.
+	* tests/languages.exp: Likewise.
+	* tests/objc.exp: Likewise.
+	* tests/test-4.exp: Likewise.
+
+2023-07-08  Bruno Haible  <bruno@clisp.org>
+
+	Avoid "gcc -Wunused-parameter" warnings on the generated hash function.
+	Reported by Vinícius dos Santos Oliveira <vini.ipsmaker@gmail.com> in
+	<https://savannah.gnu.org/bugs/index.php?64393>.
+	* src/output.cc (Output::output_hash_function): If str is not used, emit
+	a cast from str to void. If len is not used, emit a cast from len to
+	void.
+	* tests/permut2.exp: Update.
+	* tests/permut3.exp: Likewise.
+	* tests/permutc2.exp: Likewise.
+
+2023-07-01  Bruno Haible  <bruno@clisp.org>
+
+	doc: Tweaks.
+	Reported by Laurent Lyaudet <laurent.lyaudet@gmail.com> in
+	<https://lists.gnu.org/archive/html/bug-gperf/2023-06/msg00000.html>.
+	* doc/gperf.texi: Update copyright year. Fix some typos.
+	(Bugs): Don't use the term "recent enhancements", since that's over
+	20 years ago. Don't mention RAM requirements, since the execution time
+	is the bigger inconvenience nowadays.
+
 2023-06-29  Bruno Haible  <bruno@clisp.org>
 
 	Update the installation instructions for Windows.

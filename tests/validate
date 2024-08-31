@@ -33,11 +33,6 @@ for lang in `echo $languages | sed -e 's/,/ /g'`; do
 	  *)
 	      echo "${GPERF} -I -L KR-C $@ > valitest.c"
 	      ${GPERF} -I -L KR-C "$@" > valitest.c
-	      if grep -n ' const ' valitest.c /dev/null | \
-		 grep -v 'static const char\* testdata';
-	      then
-		  exit 1
-	      fi
 	      if test $use_traditional = true; then
 		  verbose ${CC} ${CFLAGS} ${CPPFLAGS} -traditional valitest.c -o valitest
 		  ./valitest

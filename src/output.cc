@@ -1,5 +1,5 @@
 /* Output routines.
-   Copyright (C) 1989-1998, 2000, 2002-2004, 2006-2007, 2009, 2011-2012, 2016, 2018, 2021 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000, 2002-2004, 2006-2007, 2009, 2011-2012, 2016, 2018, 2021, 2023 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
    and Bruno Haible <bruno@clisp.org>.
 
@@ -955,12 +955,15 @@ Output::output_hash_function () const
             "#endif\n"
             "#endif\n");
 
-  if (/* The function does not use the 'str' argument?  */
-      _key_positions.get_size() == 0
-      || /* The function uses 'str', but not the 'len' argument?  */
-         (!_hash_includes_len
-          && _key_positions[0] < _min_key_len
-          && _key_positions[_key_positions.get_size() - 1] != Positions::LASTCHAR))
+  /* Does the function use the 'str' argument?  */
+  bool uses_str = (_key_positions.get_size() > 0);
+  /* Does the function use the 'len' argument?  */
+  bool uses_len =
+     (_hash_includes_len
+      || (_key_positions.get_size() > 0
+          && (_key_positions[0] >= _min_key_len
+              || _key_positions[_key_positions.get_size() - 1] == Positions::LASTCHAR)));
+  if (!uses_str || !uses_len)
     /* Pacify lint.  */
     printf ("/*ARGSUSED*/\n");
 
@@ -970,6 +973,9 @@ Output::output_hash_function () const
   if (option[CPLUSPLUS])
     printf ("%s::", option.get_class_name ());
   printf ("%s ", option.get_hash_name ());
+  /* We better not use [[__maybe_unused__]] or __attribute__ ((__unused__))
+     because support for these syntaxes in the compilers is constantly
+     changing.  */
   printf (option[KRC] ?
                  "(str, len)\n"
             "     %schar *str;\n"
@@ -1026,6 +1032,15 @@ Output::output_hash_function () const
           printf ("\n"
                   "    };\n");
         }
+
+  if (!uses_str)
+    /* The function does not use the 'str' argument.
+       Silence "gcc -Wunused-parameter".  */
+    printf ("  (void) str;\n");
+  if (!uses_len)
+    /* The function does not use the 'len' argument.
+       Silence "gcc -Wunused-parameter".  */
+    printf ("  (void) len;\n");
 
       if (_key_positions.get_size() == 0)
         {
@@ -1086,9 +1101,9 @@ Output::output_hash_function () const
               /* Pseudo-statement or comment that avoids a compiler warning or
                  lint warning.  */
               const char * const fallthrough_marker =
-                "#if defined __cplusplus && (__cplusplus >= 201703L || (__cplusplus >= 201103L && defined __clang_major__ && defined __clang_minor__ && __clang_major__ + (__clang_minor__ >= 9) > 3))\n"
+            "#if (defined __cplusplus && (__cplusplus >= 201703L || (__cplusplus >= 201103L && defined __clang__ && __clang_major__ + (__clang_minor__ >= 9) > 3))) || (__STDC_VERSION__ >= 202000L && ((defined __GNUC__ && __GNUC__ >= 10) || (defined __clang__ && __clang_major__ >= 9)))\n"
                 "      [[fallthrough]];\n"
-                "#elif defined __GNUC__ && __GNUC__ >= 7\n"
+            "#elif (defined __GNUC__ && __GNUC__ >= 7) || (defined __clang__ && __clang_major__ >= 10)\n"
                 "      __attribute__ ((__fallthrough__));\n"
                 "#endif\n"
                 "      /*FALLTHROUGH*/\n";
@@ -1456,10 +1471,24 @@ output_keyword_blank_entries (int count, const char *indent)
 void
 Output::output_keyword_table () const
 {
-  const char *indent  = option[GLOBAL] ? "" : "  ";
+  const char *indent = option[GLOBAL] ? "" : "  ";
   unsigned int index = 0;
   KeywordExt_List *temp = _head;
   struct nbperf *nbperf = option.nbperf ();
+
+  /* Avoid compiler warnings "warning: missing initializer for field ..."
+     for each of the blank entries.  */
+  bool silence_missing_initializer_warning =
+    option[TYPE] && !option.has_initializer_suffix();
+  const char *preprocessor_condition =
+    "(defined __GNUC__ && __GNUC__ + (__GNUC_MINOR__ >= 6) > 4) || (defined __clang__ && __clang_major__ >= 3)";
+  if (silence_missing_initializer_warning)
+    {
+      printf ("#if %s\n", preprocessor_condition);
+      printf ("#pragma GCC diagnostic push\n");
+      printf ("#pragma GCC diagnostic ignored \"-Wmissing-field-initializers\"\n");
+      printf ("#endif\n");
+    }
 
   printf ("%sstatic ",
           indent);
@@ -1554,7 +1583,15 @@ Output::output_keyword_table () const
   if (index > 0)
     printf ("\n");
 
-  printf ("%s  };\n\n", indent);
+  printf ("%s  };\n", indent);
+
+  if (silence_missing_initializer_warning)
+    {
+      printf ("#if %s\n", preprocessor_condition);
+      printf ("#pragma GCC diagnostic pop\n");
+      printf ("#endif\n");
+    }
+  printf ("\n");
 }
 
 /* ------------------------------------------------------------------------- */

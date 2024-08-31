@@ -1,6 +1,6 @@
 # Makefile for gperf/doc
 
-# Copyright (C) 1998, 2000, 2002-2003, 2006-2007, 2012, 2016 Free Software Foundation, Inc.
+# Copyright (C) 1998, 2000, 2002-2003, 2006-2007, 2012, 2016, 2023-2024 Free Software Foundation, Inc.
 # Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
 # and Bruno Haible <bruno@clisp.org>.
 #
@@ -49,7 +49,7 @@ TEXI2DVI = texi2dvi
 DVIPS = dvips -D600
 TEXI2PDF = texi2pdf
 MAKEINFO = LANG= LC_MESSAGES= LC_ALL= LANGUAGE= makeinfo -c CHECK_NORMAL_MENU_STRUCTURE=1
-TEXI2HTML = perl $(srcdir)/texi2html
+TEXI2HTML = perl texi2html
 TEXI2ANY = texi2any
 
 # Programs used by "make install":
@@ -120,7 +120,8 @@ gperf_0.html : $(srcdir)/gperf.texi $(srcdir)/gpl-3.0.texi
 man : gperf.1
 
 gperf.1 gperf.1-update :
-	./help2man --name='generate a perfect hash function from a key set' --section=1 ../src/gperf > gperf.1
+	$(srcdir)/help2man --name='generate a perfect hash function from a key set' --section=1 ../src/gperf > gperf.1-t \
+	&& mv gperf.1-t $(srcdir)/gperf.1
 
 gperf.1-update : force
 
@@ -163,13 +164,13 @@ check : all
 mostlyclean : clean
 
 clean : force
-	$(RM) *~ *.aux *.toc *.cp *.fn *.ky *.pg *.tp *.vr *.my *.log *.cps core
+	$(RM) *~ *.aux *.toc *.cp *.fn *.ky *.pg *.tp *.vr *.my *.log *.cps gperf.1-t core
 
 distclean : clean
 	$(RM) config.status config.log config.cache Makefile
 
 maintainer-clean : distclean
-	$(RM) *.info *.dvi *.ps *.pdf *.html
+	$(RM) *.info *.dvi *.ps *.pdf *.html *.1
 
 # List of source files.
 SOURCE_FILES = \
@@ -190,8 +191,11 @@ DISTRIBUTED_BUILT_FILES = \
   gperf.ps \
   gperf.pdf \
   gperf.html \
-  gperf_toc.html gperf_[0-9].html gperf_[0-9][0-9].html \
+  gperf_toc.html \
   gperf.1
+# Other distributed files, generated together with $(DISTRIBUTED_BUILT_FILES).
+DISTRIBUTED_BUILT_FILES_EXTRA_PATTERNS = \
+  $(srcdir)/gperf_[0-9].html $(srcdir)/gperf_[0-9][0-9].html
 # List of distributed files.
 DISTFILES = $(SOURCE_FILES) $(IMPORTED_FILES) $(GENERATED_FILES) $(DISTRIBUTED_BUILT_FILES)
 
@@ -199,6 +203,9 @@ distdir : gperf.1-update $(DISTFILES)
 	for file in $(DISTFILES); do \
 	  if test -f $$file; then dir='.'; else dir='$(srcdir)'; fi; \
 	  cp -p $$dir/$$file '$(distdir)'/$$file || exit 1; \
+	done
+	for file in $(DISTRIBUTED_BUILT_FILES_EXTRA_PATTERNS); do \
+	  cp -p $$file '$(distdir)'/ || exit 1; \
 	done
 
 force :

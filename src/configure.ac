@@ -1,6 +1,6 @@
 dnl autoconf configuration for gperf/src
 
-dnl Copyright (C) 1998-2020 Free Software Foundation, Inc.
+dnl Copyright (C) 1998-2024 Free Software Foundation, Inc.
 dnl Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
 dnl and Bruno Haible <bruno@clisp.org>.
 dnl
@@ -22,6 +22,7 @@ dnl along with this program.  If not, see <https://www.gnu.org/licenses/>.
 AC_PREREQ([2.64])
 AC_INIT
 AC_CONFIG_SRCDIR([main.cc])
+AC_CONFIG_AUX_DIR([../build-aux])
 AC_CONFIG_HEADERS([config.h])
 AC_PROG_MAKE_SET
 dnl
@@ -35,7 +36,7 @@ AC_PROG_CXX
                       dnl sets variable CXX
 AC_PROG_CXXCPP
                       dnl sets variable CXXCPP
-CL_PROG_INSTALL
+AC_PROG_INSTALL
                       dnl sets variables INSTALL, INSTALL_DATA, INSTALL_PROGRAM
 AC_CHECK_PROGS([SED],[sed])
 AC_CHECK_PROGS([XXD],[xxd])
