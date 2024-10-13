@@ -38,8 +38,8 @@ public:
   Keyword_List *&       rest ();
 
 protected:
-  Keyword * const       _car;
   Keyword_List *        _cdr;
+  Keyword * const       _car;
 };
 
 /* List node of a linear list of KeywordExt.  */

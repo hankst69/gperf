@@ -529,7 +529,7 @@ Input::read_input ()
                 else
                 if (is_declaration (line, line_end, lineno,
                                     "omit-lookup-function"))
-                  option.set_function_name (NULL);
+                  option.set_function_name (strcmp(arg, "NONE") ? arg : NULL);
                 else
 
                 if (is_define_declaration (line, line_end, lineno,

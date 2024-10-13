@@ -26,7 +26,7 @@
 
 #include <vector>
 #include <string>
-using namespace std;
+
 #include "keyword-list.h"
 #include "positions.h"
 
@@ -175,7 +175,7 @@ protected:
   unsigned int          _alpha_size;
   /* Value associated with each character. */
   const int *           _asso_values;
-  vector<string>        _hash_body;
+  std::vector<std::string>        _hash_body;
 };
 
 #endif

@@ -85,6 +85,13 @@ Options::get_total_switches () const
   return _total_switches;
 }
 
+/* Returns the setting deciding whether to print #line statements or not.  */
+INLINE bool
+Options::get_output_pp_line () const
+{
+  return _output_pp_line;
+}
+
 /* Returns the factor by which to multiply the generated table's size.  */
 INLINE float
 Options::get_size_multiple () const

@@ -193,7 +193,7 @@ static char *posixly_correct;
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
 
-extern char *getenv ();
+#include <stdlib.h>
 
 static char *
 my_index (const char *str, int chr)

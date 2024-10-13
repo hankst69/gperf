@@ -27,7 +27,7 @@
 
 /* Constructor.  */
 Keyword_List::Keyword_List (Keyword *car)
-  : _car (car), _cdr (NULL)
+  : _cdr (NULL), _car (car)
 {
 }
 

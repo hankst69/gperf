@@ -65,7 +65,7 @@ main (int argc, char *argv[])
       {
         fprintf (stderr, "Cannot open input file '%s'\n",
                  option.get_input_file_name ());
-        exit (1);
+        return 1;
       }
 
 #ifdef PERF
@@ -181,7 +181,7 @@ main (int argc, char *argv[])
             {
               fprintf (stderr, "Cannot open output file '%s'\n",
                        option.get_output_file_name ());
-              exit (1);
+              return 1;
             }
 
       outputter->output ();

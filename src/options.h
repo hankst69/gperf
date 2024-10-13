@@ -199,6 +199,9 @@ public:
   /* Sets the total number of switch statements, if not already set.  */
   void                  set_total_switches (int total_switches);
 
+	bool get_output_pp_line () const;
+	void set_output_pp_line (bool setting);
+
   /* Returns the factor by which to multiply the generated table's size.  */
   float                 get_size_multiple () const;
 
@@ -296,6 +299,9 @@ private:
 
   /* Number of switch statements to generate.  */
   int                   _total_switches;
+
+	/* Whether to output #line statements or not.  */
+	bool                  _output_pp_line;
 
   /* Factor by which to multiply the generated table's size.  */
   float                 _size_multiple;

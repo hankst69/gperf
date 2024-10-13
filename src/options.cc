@@ -513,6 +513,7 @@ Options::Options ()
     _initial_asso_value (0),
     _asso_iterations (0),
     _total_switches (1),
+	  _output_pp_line (true),
     _size_multiple (1.0f),
     _function_name (DEFAULT_FUNCTION_NAME),
     _slot_name (DEFAULT_SLOT_NAME),
@@ -578,7 +579,8 @@ Options::~Options ()
                "\nhash table size multiplier = %g"
                "\ninitial associated value = %d"
                "\ndelimiters = %s"
-               "\nnumber of switch statements = %d\n",
+							 "\nnumber of switch statements = %d"
+							 "\noutput #line statements = %s\n",
                _option_word & TYPE ? "enabled" : "disabled",
                _option_word & UPPERLOWER ? "enabled" : "disabled",
                _option_word & KRC ? "enabled" : "disabled",
@@ -617,7 +619,9 @@ Options::~Options ()
                _wordlist_name, _lengthtable_name,
                _stringpool_name, _slot_name, _initializer_suffix,
                _asso_iterations, _jump, _size_multiple, _initial_asso_value,
-               _delimiters, _total_switches);
+               _delimiters, _total_switches,
+							 _output_pp_line ? "enabled" : "disabled"
+							);
       if (_key_positions.is_useall())
         fprintf (stderr, "all characters are used in the hash function\n");
       else
@@ -773,6 +777,13 @@ Options::set_total_switches (int total_switches)
       _option_word |= SWITCH;
       _total_switches = total_switches;
     }
+}
+
+/* Sets the print #line statements option.  */
+void
+Options::set_output_pp_line (bool setting)
+{
+  _output_pp_line = setting;
 }
 
 /* Sets the generated function name.  */
@@ -1452,6 +1463,7 @@ There is NO WARRANTY, to the extent permitted by law.\n\
             option.unset(PADDING);
             break;
           }
+
         default:
           short_usage (stderr);
           exit (1);

@@ -34,6 +34,8 @@
 #include "nbperf.h"
 #include "output.ic"
 
+using namespace std;
+
 /* ============================== Portability ============================== */
 
 /* Dynamically allocated array with dynamic extent:
@@ -622,7 +624,7 @@ static void
 output_line_directive (unsigned int lineno)
 {
   const char *file_name = option.get_input_file_name ();
-  if (file_name != NULL && !option.is_mph_algo ())
+  if (file_name != NULL && option.get_output_pp_line () && !option.is_mph_algo ())
     {
       printf ("#line %u ", lineno);
       output_string (file_name, strlen (file_name));
